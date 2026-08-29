@@ -1,0 +1,56 @@
+{
+  "event_number": 5,
+  "event_name": "200m Freestyle",
+  "gender": "Men",
+  "results": [
+    {
+      "position": 1,
+      "name": "C. D. Ampavila",
+      "team_code": "COL",
+      "achievement": "02:08.03",
+      "status": "finished"
+    },
+    {
+      "position": 2,
+      "name": "G. G. A. M. S. Gamage",
+      "team_code": "SAB",
+      "achievement": "02:16.46",
+      "status": "finished"
+    },
+    {
+      "position": 3,
+      "name": "A. B. Perera",
+      "team_code": "KEL",
+      "achievement": "02:18.10",
+      "status": "finished"
+    },
+    {
+      "position": 4,
+      "name": "M. Silva",
+      "team_code": "MOR",
+      "achievement": "02:19.40",
+      "status": "finished"
+    },
+    {
+      "position": 5,
+      "name": "K. Fernando",
+      "team_code": "SJP",
+      "achievement": "02:21.02",
+      "status": "finished"
+    },
+    {
+      "position": 6,
+      "name": "N. Jayasuriya",
+      "team_code": "RUH",
+      "achievement": "02:22.88",
+      "status": "finished"
+    },
+    {
+      "position": 16,
+      "name": "R. C. P. T. B. Ariyawansa",
+      "team_code": "WAY",
+      "achievement": "DNS",
+      "status": "DNS"
+    }
+  ]
+}
