@@ -1,63 +1,38 @@
-# Inter-University Swimming Championships 2026 — Live Scoring
+# Inter-University Swimming Championships 2026
 
-Next.js app for meet officials to upload one event result PDF, review the extracted table, publish points, and push live standings to every open leaderboard tab.
+Live team scoring for the meet. Officials upload one event result PDF, check the extracted table, then publish. Every open leaderboard updates without a refresh.
 
-## Documentation
+**Spectators** — no login. **Officials** — email/password only.
 
-| Doc | Contents |
+The production app is hosted on **Vercel** (open your project → **Domains** for the live URL). Making this GitHub repo public does **not** publish API keys; those stay in Vercel Environment Variables.
+
+## Who should use public vs private
+
+| Choice | Use when |
 | --- | --- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Stack, repo layout, data model, RLS, realtime, hosting |
-| [docs/PDF-PIPELINE.md](docs/PDF-PIPELINE.md) | Exact path from PDF drop → Claude → review → publish → live board |
-| [docs/FEATURES.md](docs/FEATURES.md) | Spectator and official features, scoring rules, meet-day processes |
-| [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) | Supabase, Auth, Anthropic, Vercel, and go-live checklist |
+| **Public** (recommended for a student / portfolio project) | You want others to see the code. Keys are only in Vercel / `.env.local`. |
+| **Private** | You do not want the source or sample result PDF on the open internet. |
 
-## Stack
+`main` is the only branch and should stay the **default**. Vercel already deploys from `main`.
 
-- Next.js (App Router) + TypeScript + Tailwind CSS
-- Supabase (Postgres, Auth, Storage, Realtime)
-- Anthropic Claude (PDF → JSON extraction)
+**Never put in the README or in git:** database password, `service_role` key, OpenAI/Anthropic keys, official login password.
 
-## Environment variables
+## Live site
 
-Copy [`.env.example`](.env.example) to `.env.local`:
+1. Open [Vercel Dashboard](https://vercel.com/dashboard) → **swim-scoring-app**.
+2. Copy the Production URL (usually `https://….vercel.app`).
+3. On GitHub: repo **About** (gear icon) → paste that URL as the **Website**.
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
-```
+Public pages: `/` leaderboard · `/schedule` programme · `/login` officials.
 
-## Quick start
+## Features
 
-```bash
-npm install
-cp .env.example .env.local
-# fill keys, then run SQL in Supabase (schema.sql then seed.sql)
-npm run dev
-```
-
-- Public leaderboard: http://localhost:3000
-- Schedule: http://localhost:3000/schedule
-- Admin: http://localhost:3000/login
-
-In development, the upload screen includes **Load Event 5 fixture** so you can confirm scoring without an Anthropic key.
-
-```bash
-npm test
-```
-
-Full setup and deploy: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md).
-
-## Meet-day flow
-
-1. Official signs in and picks an event.
-2. Uploads that event’s result PDF (Claude extracts name, team, place, time/status).
-3. Reviews the table. Unknown team codes are highlighted and block publish.
-4. **Confirm & Publish** writes points (positions 1–6, `finished` only) and flips the event to confirmed.
-5. Open leaderboard tabs update immediately via Supabase Realtime.
-6. To correct a DQ after the fact, reopen the event, edit the row, tick **Replace existing result**, and publish again. Points are rebuilt for that event, never stacked.
+- Leaderboard tabs: **Overall | Men | Women** (overall = Men + Women per university)
+- Schedule Day 1 / Day 2; posted events show top 6, medals, points
+- Officials: PDF upload → AI extract (OpenAI or Anthropic) → review → **Confirm & Publish**
+- Replace-not-stack if a result is corrected (e.g. DQ)
+- Unknown team codes cannot be published
+- Audit log with the original PDF
 
 ## Points
 
@@ -70,4 +45,75 @@ Full setup and deploy: [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md).
 | 5 | 2 | 2 |
 | 6 | 1 | 1 |
 
-DNS / DQ / DNF / NS / WD score 0. Overall standings = Men + Women for that university. Ties break on count-back (more 1sts, then 2nds, … 6ths).
+Only **finished** places 1–6 score. DNS / DQ / DNF / NS / WD = 0. Ties break on count-back (more 1sts, then 2nds, …).
+
+## Stack
+
+Next.js (App Router) · Supabase (Postgres, Auth, Storage, Realtime) · OpenAI or Anthropic for PDF extraction · Vercel
+
+## Local setup
+
+```bash
+git clone https://github.com/ThevinduFernando2003/Swim-scoring-App.git
+cd Swim-scoring-App
+npm install
+cp .env.example .env.local
+```
+
+Fill `.env.local` (see `.env.example`). In the [Supabase](https://supabase.com) SQL editor run `supabase/schema.sql` then `supabase/seed.sql`. Create an official user under **Authentication → Users**.
+
+```bash
+npm run dev
+```
+
+- http://localhost:3000 — leaderboard  
+- http://localhost:3000/login — officials  
+- Development only: **Load Event 5 fixture** (not shown on Vercel)
+
+```bash
+npm test
+```
+
+## Environment variables
+
+| Name | Public in browser? | Notes |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon key; RLS must stay on |
+| `SUPABASE_SERVICE_ROLE_KEY` | **No** | Vercel / `.env.local` only |
+| `OPENAI_API_KEY` | **No** | PDF extract (this project’s default) |
+| `OPENAI_MODEL` | No | e.g. `gpt-4o` |
+| `ANTHROPIC_API_KEY` | **No** | Optional; leave empty if using OpenAI |
+| `ANTHROPIC_MODEL` | No | Optional |
+
+On Vercel: **Settings → Environment Variables** → Production and Preview. After changing keys, **Redeploy**.
+
+## Docs
+
+| Doc | Contents |
+| --- | --- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data model, RLS, realtime |
+| [docs/PDF-PIPELINE.md](docs/PDF-PIPELINE.md) | Upload → extract → review → publish |
+| [docs/FEATURES.md](docs/FEATURES.md) | Screens and scoring rules |
+| [docs/NEXT-STEPS.md](docs/NEXT-STEPS.md) | Supabase / Vercel checklist |
+
+## Make the GitHub repo public
+
+1. Confirm `.env.local` is **not** on GitHub (it is listed in `.gitignore`).
+2. Repo → **Settings → General → Default branch** → `main`.
+3. **Settings → General → Danger zone → Change repository visibility → Public**.
+4. **About** (repo home, gear): description e.g. `Live scoring for IUSC 2026`, website = Vercel URL, topics: `nextjs`, `supabase`, `swimming`.
+5. Optional: **Settings → Rules → Rulesets** to protect `main` (require pull requests) — not required for a solo meet project.
+
+Vercel keeps working. A public repo only shows source code; it does not show Vercel secrets or let strangers publish scores unless they have an official login.
+
+## After it is public
+
+- Supabase → Authentication → disable public sign-up (only invited officials).
+- Do not write official passwords in issues or the README.
+- If keys were ever pasted in chat or a screenshot, **rotate** them in Supabase / OpenAI and update Vercel.
+- Sample sheet: `Results/DAY 01 - EVENT 05.pdf`.
+
+## License
+
+[MIT](LICENSE) © 2026 Thevindu Fernando
