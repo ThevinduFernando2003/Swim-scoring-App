@@ -73,12 +73,26 @@ export function parseExtractionJson(raw: string): ExtractionPayload {
   };
 }
 
-export async function extractResultsFromPdf(pdfBytes: Buffer) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
-  }
+function payloadFromParsed(parsed: z.infer<typeof extractionSchema>): ExtractionPayload {
+  return {
+    event_number: parsed.event_number ?? null,
+    event_name: parsed.event_name ?? null,
+    gender: parsed.gender ?? null,
+    results: parsed.results.map((row) => ({
+      position: row.position ?? null,
+      name: row.name.trim(),
+      team_code: row.team_code.trim().toUpperCase(),
+      achievement: row.achievement.trim(),
+      status: normalizeStatus(row.status),
+    })),
+  };
+}
 
+function looksLikeOpenAiKey(key: string) {
+  return key.startsWith("sk-proj-") || key.startsWith("sk-svcacct-");
+}
+
+async function extractWithAnthropic(apiKey: string, pdfBytes: Buffer) {
   const client = new Anthropic({ apiKey });
   const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
   const response = await client.messages.parse({
@@ -106,19 +120,7 @@ export async function extractResultsFromPdf(pdfBytes: Buffer) {
   });
 
   if (response.parsed_output) {
-    const parsed = extractionSchema.parse(response.parsed_output);
-    return {
-      event_number: parsed.event_number ?? null,
-      event_name: parsed.event_name ?? null,
-      gender: parsed.gender ?? null,
-      results: parsed.results.map((row) => ({
-        position: row.position ?? null,
-        name: row.name.trim(),
-        team_code: row.team_code.trim().toUpperCase(),
-        achievement: row.achievement.trim(),
-        status: normalizeStatus(row.status),
-      })),
-    };
+    return payloadFromParsed(extractionSchema.parse(response.parsed_output));
   }
 
   const text = response.content
@@ -127,4 +129,70 @@ export async function extractResultsFromPdf(pdfBytes: Buffer) {
     .join("\n");
 
   return parseExtractionJson(text);
+}
+
+async function extractWithOpenAi(apiKey: string, pdfBytes: Buffer) {
+  const model = process.env.OPENAI_MODEL || "gpt-4o";
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              file: {
+                filename: "result-sheet.pdf",
+                file_data: `data:application/pdf;base64,${pdfBytes.toString("base64")}`,
+              },
+            },
+            { type: "text", text: EXTRACTION_PROMPT },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const json = (await response.json()) as {
+    error?: { message?: string };
+    choices?: { message?: { content?: string } }[];
+  };
+
+  if (!response.ok) {
+    throw new Error(
+      json.error?.message ||
+        `OpenAI request failed (${response.status}). Check OPENAI_API_KEY.`,
+    );
+  }
+
+  const text = json.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new Error("OpenAI returned an empty extraction");
+  }
+  return parseExtractionJson(text);
+}
+
+export async function extractResultsFromPdf(pdfBytes: Buffer) {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const openAiKey = process.env.OPENAI_API_KEY?.trim();
+
+  if (anthropicKey && !looksLikeOpenAiKey(anthropicKey)) {
+    return extractWithAnthropic(anthropicKey, pdfBytes);
+  }
+
+  const key = openAiKey || (anthropicKey && looksLikeOpenAiKey(anthropicKey) ? anthropicKey : "");
+  if (key) {
+    return extractWithOpenAi(key, pdfBytes);
+  }
+
+  throw new Error(
+    "Set OPENAI_API_KEY (or a real ANTHROPIC_API_KEY) to extract result PDFs.",
+  );
 }
