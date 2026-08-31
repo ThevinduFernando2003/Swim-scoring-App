@@ -1,6 +1,7 @@
-import { pointsFor } from "./points.ts";
+import { DEFAULT_POINTS_CONFIG, pointsFor } from "./points.ts";
 import type {
   EventType,
+  PointsConfig,
   PublishRow,
   ReviewedResult,
   Team,
@@ -27,6 +28,7 @@ export function toPublishRows(
   eventType: EventType,
   rows: ReviewedResult[],
   teams: Team[],
+  config: PointsConfig = DEFAULT_POINTS_CONFIG,
 ): { rows: PublishRow[]; unknownCodes: string[] } {
   const byCode = new Map(teams.map((team) => [team.code.toUpperCase(), team]));
   const unknownCodes = unknownTeamCodes(rows, teams);
@@ -45,7 +47,7 @@ export function toPublishRows(
       team_id: team.id,
       achievement: row.achievement.trim(),
       result_status: row.result_status,
-      points_awarded: pointsFor(eventType, position, row.result_status),
+      points_awarded: pointsFor(eventType, position, row.result_status, config),
     };
   });
 

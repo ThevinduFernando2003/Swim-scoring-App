@@ -5,13 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { unknownTeamCodes } from "@/lib/publish";
 import { pointsFor } from "@/lib/points";
+import { unknownTeamCodes } from "@/lib/publish";
+import { findDuplicateWarnings } from "@/lib/swimmers";
 import type {
   ExtractionPayload,
+  Meet,
   MeetEvent,
+  PointsConfig,
   ResultStatus,
   ReviewedResult,
+  Swimmer,
   Team,
 } from "@/lib/types";
 import { RESULT_STATUSES } from "@/lib/types";
@@ -39,13 +43,19 @@ function emptyRow(): ReviewedResult {
 }
 
 export function EventReview({
+  meet,
   event,
   teams,
+  swimmers,
+  pointsConfig,
   initialExtraction,
   initialUploadId,
 }: {
+  meet: Meet;
   event: MeetEvent;
   teams: Team[];
+  swimmers: Swimmer[];
+  pointsConfig: PointsConfig;
   initialExtraction: ExtractionPayload | null;
   initialUploadId: number | null;
 }) {
@@ -65,6 +75,12 @@ export function EventReview({
     () => new Set(teams.map((team) => team.code.toUpperCase())),
     [teams],
   );
+  const duplicates = useMemo(
+    () => findDuplicateWarnings(rows, swimmers, teams),
+    [rows, swimmers, teams],
+  );
+  const readOnly = meet.status === "completed";
+  const adminHome = `/meets/${meet.slug}/admin`;
 
   async function extract(file: File | null, useFixture = false) {
     setBusy("extract");
@@ -112,7 +128,7 @@ export function EventReview({
       if (!response.ok) {
         throw new Error(json.error || "Publish failed");
       }
-      router.push("/admin");
+      router.push(adminHome);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Publish failed");
@@ -129,7 +145,7 @@ export function EventReview({
 
   return (
     <div className="space-y-6">
-      <Link href="/admin" className="text-sm font-semibold text-gold">
+      <Link href={adminHome} className="text-sm font-semibold text-gold">
         ← Dashboard
       </Link>
       <div>
@@ -140,15 +156,23 @@ export function EventReview({
         <h1 className="text-3xl font-black text-cream">{event.name}</h1>
       </div>
 
+      {readOnly ? (
+        <p className="rounded-md border border-amber-400/40 bg-amber-950/40 px-3 py-2 text-sm text-amber-100">
+          This meet is completed and read-only. Re-open it from Settings if you
+          need to correct a result.
+        </p>
+      ) : null}
+
       <div
         onDragOver={(e) => {
           e.preventDefault();
-          setDragOver(true);
+          if (!readOnly) setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
+          if (readOnly) return;
           const file = e.dataTransfer.files[0];
           if (file) void extract(file);
         }}
@@ -173,7 +197,7 @@ export function EventReview({
           <Button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={busy !== null}
+            disabled={busy !== null || readOnly}
           >
             {busy === "extract" ? "Extracting…" : "Choose PDF"}
           </Button>
@@ -181,7 +205,7 @@ export function EventReview({
             <Button
               type="button"
               variant="outline"
-              disabled={busy !== null}
+              disabled={busy !== null || readOnly}
               onClick={() => void extract(null, true)}
             >
               Load Event 5 fixture
@@ -196,7 +220,7 @@ export function EventReview({
             <tr>
               <th className="px-3 py-2">Pos</th>
               <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Team</th>
+              <th className="px-3 py-2">{meet.participant_label}</th>
               <th className="px-3 py-2">Time / code</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2 text-right">Pts</th>
@@ -207,6 +231,7 @@ export function EventReview({
             {rows.map((row, index) => {
               const code = row.team_code.trim().toUpperCase();
               const unknownTeam = Boolean(code) && !knownCodes.has(code);
+              const dup = duplicates.find((item) => item.rowIndex === index);
               return (
                 <tr key={index} className="border-t border-white/10">
                   <td className="px-3 py-2">
@@ -230,6 +255,12 @@ export function EventReview({
                         updateRow(index, { swimmer_name: e.target.value })
                       }
                     />
+                    {dup ? (
+                      <p className="mt-1 text-[11px] text-amber-200">
+                        Similar name on {dup.teamCode}: {dup.matches.join(", ")}.
+                        Edit to merge, or leave if they are different people.
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2">
                     <select
@@ -281,7 +312,12 @@ export function EventReview({
                     </select>
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-lg font-black">
-                    {pointsFor(event.event_type, row.position, row.result_status)}
+                    {pointsFor(
+                      event.event_type,
+                      row.position,
+                      row.result_status,
+                      pointsConfig,
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <button
@@ -311,7 +347,16 @@ export function EventReview({
 
       {unknown.length > 0 ? (
         <p className="rounded-md border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-          Unknown team codes must be fixed before publishing: {unknown.join(", ")}
+          Unknown {meet.participant_label.toLowerCase()} codes must be fixed before
+          publishing: {unknown.join(", ")}
+        </p>
+      ) : null}
+
+      {duplicates.length > 0 ? (
+        <p className="rounded-md border border-amber-400/40 bg-amber-950/40 px-3 py-2 text-sm text-amber-100">
+          Possible duplicate names on the same {meet.participant_label.toLowerCase()}{" "}
+          were flagged. Matching on confirm is exact (name + team) — similar
+          spellings are not merged automatically.
         </p>
       ) : null}
 
@@ -332,7 +377,7 @@ export function EventReview({
       <Button
         type="button"
         size="lg"
-        disabled={busy !== null || unknown.length > 0 || rows.length === 0}
+        disabled={busy !== null || unknown.length > 0 || rows.length === 0 || readOnly}
         onClick={() => void publish()}
       >
         {busy === "publish"

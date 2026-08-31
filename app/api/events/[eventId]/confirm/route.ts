@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requireMeetAccess } from "@/lib/auth";
 import { loadTeams } from "@/lib/data";
+import { parsePointsConfig } from "@/lib/points";
 import { toPublishRows } from "@/lib/publish";
+import { attachSwimmers } from "@/lib/swimmers";
 import { createClient } from "@/lib/supabase/server";
 import type { EventType } from "@/lib/types";
 
@@ -25,7 +27,6 @@ export async function POST(
   context: { params: Promise<{ eventId: string }> },
 ) {
   try {
-    await requireUser();
     const { eventId } = await context.params;
     const id = Number(eventId);
     if (!Number.isFinite(id)) {
@@ -45,11 +46,30 @@ export async function POST(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    const teams = await loadTeams(supabase);
+    const { access } = await requireMeetAccess(event.meet_id);
+    if (!access.canScore) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { data: meet } = await supabase
+      .from("meets")
+      .select("status, points_config")
+      .eq("id", event.meet_id)
+      .single();
+    if (meet?.status === "completed" && !access.isSuperAdmin) {
+      return NextResponse.json(
+        { error: "This meet is completed and read-only" },
+        { status: 403 },
+      );
+    }
+
+    const teams = await loadTeams(supabase, event.meet_id);
+    const config = parsePointsConfig(meet?.points_config);
     const { rows, unknownCodes } = toPublishRows(
       event.event_type as EventType,
       body.results,
       teams,
+      config,
     );
     if (unknownCodes.length > 0) {
       return NextResponse.json(
@@ -58,11 +78,18 @@ export async function POST(
       );
     }
 
+    const withSwimmers = await attachSwimmers(
+      supabase,
+      event.meet_id,
+      rows,
+      event.gender ?? null,
+    );
+
     const { error } = await supabase.rpc("publish_event_results", {
       p_event_id: id,
       p_replace: body.replace,
       p_upload_id: body.uploadId ?? null,
-      p_rows: rows,
+      p_rows: withSwimmers,
     });
 
     if (error) {
@@ -75,10 +102,13 @@ export async function POST(
           { status: 409 },
         );
       }
+      if (error.message.includes("forbidden")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, rows: rows.length });
+    return NextResponse.json({ ok: true, rows: withSwimmers.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish failed";
     if (message === "unauthorized") {

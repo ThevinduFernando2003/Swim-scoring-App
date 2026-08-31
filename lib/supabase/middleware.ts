@@ -1,6 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function isProtectedPath(pathname: string) {
+  return (
+    pathname.startsWith("/admin") ||
+    /\/meets\/[^/]+\/admin(\/|$)/.test(pathname)
+  );
+}
+
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -8,7 +15,7 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   if (!url || !key) {
-    if (request.nextUrl.pathname.startsWith("/admin")) {
+    if (isProtectedPath(request.nextUrl.pathname)) {
       const login = request.nextUrl.clone();
       login.pathname = "/login";
       login.searchParams.set("next", request.nextUrl.pathname);
@@ -38,7 +45,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && request.nextUrl.pathname.startsWith("/admin")) {
+  if (!user && isProtectedPath(request.nextUrl.pathname)) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
     login.searchParams.set("next", request.nextUrl.pathname);

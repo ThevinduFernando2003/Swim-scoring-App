@@ -1,5 +1,6 @@
 -- Inter-University Swimming Championships 2026
--- Run this in the Supabase SQL editor first, then seed.sql.
+-- Fresh install: run this file first, then seed.sql, then migration_v2.sql.
+-- Existing live databases: do NOT re-run this file. Run supabase/migration_v2.sql only.
 
 create table if not exists public.teams (
   id serial primary key,
