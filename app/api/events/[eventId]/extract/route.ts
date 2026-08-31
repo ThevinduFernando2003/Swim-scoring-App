@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { requireUser } from "@/lib/auth";
+import { requireMeetAccess } from "@/lib/auth";
 import { extractResultsFromPdf, parseExtractionJson } from "@/lib/extraction";
+import { rateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -13,7 +14,6 @@ export async function POST(
   context: { params: Promise<{ eventId: string }> },
 ) {
   try {
-    const user = await requireUser();
     const { eventId } = await context.params;
     const id = Number(eventId);
     if (!Number.isFinite(id)) {
@@ -28,6 +28,33 @@ export async function POST(
       .single();
     if (eventError || !event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const { user, access } = await requireMeetAccess(event.meet_id);
+    if (!access.canScore) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const limited = rateLimit(`extract:${user.id}`, 8, 10 * 60 * 1000);
+    if (!limited.ok) {
+      return NextResponse.json(
+        {
+          error: `Too many PDF extractions. Try again in ${limited.retryAfterSec}s.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    const { data: meet } = await supabase
+      .from("meets")
+      .select("status, slug")
+      .eq("id", event.meet_id)
+      .single();
+    if (meet?.status === "completed" && !access.isSuperAdmin) {
+      return NextResponse.json(
+        { error: "This meet is completed and read-only" },
+        { status: 403 },
+      );
     }
 
     const formData = await request.formData();
@@ -52,7 +79,8 @@ export async function POST(
         );
       }
       const bytes = Buffer.from(await file.arrayBuffer());
-      filePath = `${id}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+      const prefix = meet?.slug ? `${meet.slug}/${id}` : String(id);
+      filePath = `${prefix}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
       const { error: uploadError } = await supabase.storage
         .from("result-pdfs")
         .upload(filePath, bytes, {
@@ -77,6 +105,7 @@ export async function POST(
       .from("uploads")
       .insert({
         event_id: id,
+        meet_id: event.meet_id,
         file_path: filePath,
         raw_extraction: extraction,
         uploaded_by: user.email ?? user.id,
@@ -90,10 +119,7 @@ export async function POST(
     }
 
     if (event.status !== "confirmed") {
-      await supabase
-        .from("events")
-        .update({ status: "pending_review" })
-        .eq("id", id);
+      await supabase.rpc("mark_event_pending_review", { p_event_id: id });
     }
 
     return NextResponse.json({
