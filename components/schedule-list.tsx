@@ -5,12 +5,30 @@ import { useMemo, useState } from "react";
 import { StatusPill } from "@/components/status-pill";
 import type { MeetEvent } from "@/lib/types";
 
-export function ScheduleList({ events }: { events: MeetEvent[] }) {
-  const [day, setDay] = useState<1 | 2>(1);
+export function ScheduleList({
+  events,
+  slug,
+}: {
+  events: MeetEvent[];
+  slug: string;
+}) {
+  const days = useMemo(
+    () => [...new Set(events.map((event) => event.day))].sort((a, b) => a - b),
+    [events],
+  );
+  const [day, setDay] = useState<number>(days[0] ?? 1);
   const visible = useMemo(
     () => events.filter((event) => event.day === day),
     [day, events],
   );
+
+  if (events.length === 0) {
+    return (
+      <p className="rounded-xl border border-gold/20 bg-navy-mid p-8 text-cream/70">
+        No events have been added to this meet yet.
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -23,21 +41,26 @@ export function ScheduleList({ events }: { events: MeetEvent[] }) {
         </h1>
       </div>
 
-      <div className="flex rounded-lg border border-gold/30 bg-navy-mid p-1">
-        {([1, 2] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setDay(item)}
-            className={`flex-1 rounded-md px-3 py-2.5 text-sm font-bold uppercase tracking-wide ${
-              day === item ? "bg-gold text-navy" : "text-cream/70 hover:text-cream"
-            }`}
-          >
-            Day {item}
-            {item === 1 ? " — 1 Aug 2026" : ""}
-          </button>
-        ))}
-      </div>
+      {days.length > 1 ? (
+        <div className="flex rounded-lg border border-gold/30 bg-navy-mid p-1">
+          {days.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setDay(item)}
+              className={`flex-1 rounded-md px-3 py-2.5 text-sm font-bold uppercase tracking-wide ${
+                day === item ? "bg-gold text-navy" : "text-cream/70 hover:text-cream"
+              }`}
+            >
+              Day {item}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm font-bold uppercase tracking-widest text-gold">
+          Day {days[0]}
+        </p>
+      )}
 
       <ol className="space-y-2">
         {visible.map((event) => {
@@ -58,7 +81,7 @@ export function ScheduleList({ events }: { events: MeetEvent[] }) {
           if (event.status === "confirmed") {
             return (
               <li key={event.id}>
-                <Link href={`/schedule/${event.id}`}>{inner}</Link>
+                <Link href={`/meets/${slug}/events/${event.id}`}>{inner}</Link>
               </li>
             );
           }
