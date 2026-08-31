@@ -1,0 +1,24 @@
+-- Optional checks after migration_v2.sql. Run while signed in as different users
+-- (SQL editor is the service role — use the App or Table Editor with RLS on).
+--
+-- 1) Anonymous / public
+--    - SELECT from meets where status = 'draft' returns 0 rows
+--    - SELECT from meets where status in ('live','completed') returns those meets
+--    - INSERT into teams / events / event_results fails
+--
+-- 2) Official on meet A
+--    - Can INSERT uploads and publish results for meet A
+--    - Cannot INSERT teams or UPDATE points_config for meet A
+--    - Cannot write teams/events/results for meet B
+--
+-- 3) Meet admin on meet A
+--    - Can UPDATE meets.points_config, teams, events for meet A
+--    - Can INSERT meet_roles with role = official for meet A
+--    - Cannot create a new row in meets (super admin only)
+--
+-- 4) Super admin
+--    - Can INSERT meets and super_admins
+--    - Can write every meet
+--
+-- Storage: bucket result-pdfs is public-read by design so "View original PDF"
+-- works without login. Only objects in that bucket are exposed, not the database.
