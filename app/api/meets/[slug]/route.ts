@@ -12,6 +12,10 @@ const patchSchema = z.object({
   pdfs_public: z.boolean().optional(),
   points_config: z.unknown().optional(),
   points_mode: z.enum(["future", "recalculate"]).optional(),
+  logo_url: z.string().nullable().optional(),
+  primary_color: z.string().nullable().optional(),
+  background_url: z.string().nullable().optional(),
+  next_results_at: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -35,6 +39,14 @@ export async function PATCH(
     if (body.participant_label) patch.participant_label = body.participant_label.trim();
     if (body.status) patch.status = body.status;
     if (body.pdfs_public != null) patch.pdfs_public = body.pdfs_public;
+    if (body.logo_url !== undefined) patch.logo_url = body.logo_url || null;
+    if (body.primary_color !== undefined) patch.primary_color = body.primary_color || null;
+    if (body.background_url !== undefined) patch.background_url = body.background_url || null;
+    if (body.next_results_at !== undefined) {
+      patch.next_results_at = body.next_results_at
+        ? new Date(body.next_results_at).toISOString()
+        : null;
+    }
 
     const nextConfig = body.points_config
       ? parsePointsConfig(body.points_config)

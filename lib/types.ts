@@ -19,7 +19,21 @@ export type Meet = {
   status: MeetStatus;
   points_config: PointsConfig;
   pdfs_public: boolean;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  background_url?: string | null;
+  next_results_at?: string | null;
   created_at?: string;
+};
+
+export type MeetSponsor = {
+  id: string;
+  meet_id: string;
+  name: string;
+  logo_url: string | null;
+  url: string | null;
+  placement: "footer" | "background" | "header";
+  sort_order: number;
 };
 
 export type Team = {
@@ -59,8 +73,33 @@ export type Swimmer = {
   name: string;
   gender: string | null;
   age_group: string | null;
+  age?: number | null;
+  slasu_number?: string | null;
+  registered?: boolean;
+  slasu_verified?: boolean;
+  present?: boolean;
+  notes?: string | null;
   team_code?: string;
   team_name?: string;
+};
+
+export type ImportedTeam = { code: string; name: string };
+
+export type ImportedSwimmer = {
+  name: string;
+  team_code: string;
+  gender: Gender | null;
+  age: number | null;
+  age_group: string | null;
+  slasu_number: string | null;
+};
+
+export type ImportedEvent = {
+  day: number;
+  event_number: number;
+  name: string;
+  gender: Gender;
+  event_type: EventType;
 };
 
 export type ExtractedResult = {

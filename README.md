@@ -25,6 +25,10 @@ Public pages: `/` meet list · `/meets/[slug]` leaderboard · `/login` officials
 - Public **View original PDF** on each confirmed event
 - CSV standings / event results; admin JSON export of a full meet
 - Organisation name, logo, and colour (Super Admin → Branding)
+- Per-meet colour, official logo, background, and sponsors (footer, header, or watermark)
+- PDF import for teams/schools, entry roster, and the full schedule
+- Day-one check-in: registered, SLASU confirmed, present (public search + desk ticks)
+- Admin-set “next results expected at” time on public meet pages
 
 ## Points
 
@@ -56,8 +60,8 @@ cp .env.example .env.local
 
 Fill `.env.local` (see `.env.example`). In the [Supabase](https://supabase.com) SQL editor:
 
-1. **New project:** `supabase/schema.sql` then `supabase/seed.sql` then `supabase/migration_v2.sql`
-2. **Existing live database:** run **only** `supabase/migration_v2.sql` (keeps Inter Uni results as meet `inter-uni-2026`)
+1. **New project:** `supabase/schema.sql` then `supabase/seed.sql` then `supabase/migration_v2.sql` then `supabase/migration_v3.sql`
+2. **Existing live database:** run **only** `supabase/migration_v2.sql` (keeps Inter Uni results as meet `inter-uni-2026`), then `supabase/migration_v3.sql` for branding, roster check-in, and PDF imports
 
 Create an official user under **Authentication → Users**. The migration promotes `admin@gmail.com` to super admin if that user exists.
 

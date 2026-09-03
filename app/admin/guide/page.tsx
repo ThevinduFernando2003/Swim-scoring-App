@@ -24,10 +24,14 @@ export default function RunningAMeetGuidePage() {
       <h2 className="text-xl font-bold text-gold">2. Set up teams, schedule, points</h2>
       <p>
         In that meet’s admin area: add every team/school with a short code
-        (COL, …). Build the programme (day, event number, name, gender,
-        individual or relay). Open Settings and set how many places score and
-        the points for each place. Switch status to <strong>live</strong> when
-        the public should see it.
+        (COL, …), or drop the official list PDF. Build the programme by hand
+        or import the schedule PDF, and set <strong>Next results expected
+        at</strong> so the public knows when to check back. Import the entry
+        roster PDF, then use Roster / check-in on day one (registered, SLASU,
+        present). Under Appearance, set this meet’s colour, official logo, and
+        sponsors. Open Settings and set how many places score and the points
+        for each place. Switch status to <strong>live</strong> when the public
+        should see it.
       </p>
       <h2 className="text-xl font-bold text-gold">3. Invite officials</h2>
       <p>

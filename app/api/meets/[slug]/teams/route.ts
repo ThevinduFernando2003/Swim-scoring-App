@@ -5,10 +5,11 @@ import { loadMeetBySlug } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
-  action: z.enum(["create", "update", "delete"]),
+  action: z.enum(["create", "update", "delete", "bulk_upsert"]),
   id: z.number().optional(),
   code: z.string().optional(),
   name: z.string().optional(),
+  teams: z.array(z.object({ code: z.string(), name: z.string() })).optional(),
 });
 
 export async function POST(
@@ -26,6 +27,46 @@ export async function POST(
     }
 
     const body = schema.parse(await request.json());
+    if (body.action === "bulk_upsert") {
+      const incoming = body.teams ?? [];
+      if (incoming.length === 0) {
+        return NextResponse.json({ error: "No teams to import" }, { status: 400 });
+      }
+      const { data: existing } = await supabase
+        .from("teams")
+        .select("id, code")
+        .eq("meet_id", meet.id);
+      const byCode = new Map(
+        (existing ?? []).map((row) => [row.code.toUpperCase(), row.id]),
+      );
+      let created = 0;
+      let updated = 0;
+      for (const row of incoming) {
+        const code = row.code.trim().toUpperCase();
+        const name = row.name.trim();
+        if (!code || !name) continue;
+        const id = byCode.get(code);
+        if (id) {
+          const { error } = await supabase
+            .from("teams")
+            .update({ name })
+            .eq("id", id)
+            .eq("meet_id", meet.id);
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+          updated += 1;
+        } else {
+          const { error } = await supabase.from("teams").insert({
+            meet_id: meet.id,
+            code,
+            name,
+          });
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+          created += 1;
+        }
+      }
+      return NextResponse.json({ ok: true, created, updated });
+    }
+
     if (body.action === "create") {
       const code = (body.code ?? "").trim().toUpperCase();
       const name = (body.name ?? "").trim();

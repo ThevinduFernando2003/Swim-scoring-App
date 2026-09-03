@@ -1,5 +1,6 @@
 -- v2 multi-meet migration. Run in the Supabase SQL editor AFTER schema.sql + seed.sql
 -- (safe on a live database: backfills Inter Uni as meet #1, no result rows deleted).
+-- Safe to re-run if a previous attempt failed at the standings views.
 
 create table if not exists public.meets (
   id uuid primary key default gen_random_uuid(),
@@ -193,7 +194,13 @@ grant execute on function public.can_manage_meet(uuid) to anon, authenticated;
 grant execute on function public.can_score_meet(uuid) to anon, authenticated;
 grant execute on function public.meet_is_public(uuid) to anon, authenticated;
 
-create or replace view public.team_standings
+-- CREATE OR REPLACE VIEW cannot rename columns. The v1 views start with team_id;
+-- v2 prepends meet_id, so they must be dropped and recreated.
+drop view if exists public.swimmer_standings;
+drop view if exists public.team_standings;
+drop view if exists public.team_overall_standings;
+
+create view public.team_standings
 with (security_invoker = true) as
 select
   t.meet_id,
@@ -208,7 +215,7 @@ left join public.events e on e.meet_id = t.meet_id and e.gender = g.gender
 left join public.event_results r on r.event_id = e.id and r.team_id = t.id
 group by t.meet_id, t.id, t.code, t.name, g.gender;
 
-create or replace view public.team_overall_standings
+create view public.team_overall_standings
 with (security_invoker = true) as
 select
   t.meet_id,
@@ -220,7 +227,7 @@ from public.teams t
 left join public.event_results r on r.team_id = t.id
 group by t.meet_id, t.id, t.code, t.name;
 
-create or replace view public.swimmer_standings
+create view public.swimmer_standings
 with (security_invoker = true) as
 select
   s.meet_id,
@@ -235,6 +242,9 @@ from public.swimmers s
 join public.teams t on t.id = s.team_id
 left join public.event_results r on r.swimmer_id = s.id
 group by s.meet_id, s.id, s.name, s.team_id, t.code, t.name;
+
+grant select on public.team_standings, public.team_overall_standings,
+  public.swimmer_standings to anon, authenticated;
 
 create or replace function public.publish_event_results(
   p_event_id int,

@@ -2,10 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PdfImportPanel } from "@/components/pdf-import-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { EventType, Gender, Meet, MeetEvent } from "@/lib/types";
+import type { EventType, Gender, ImportedEvent, Meet, MeetEvent } from "@/lib/types";
 import { EVENT_TYPES, GENDERS } from "@/lib/types";
+
+function toDatetimeLocal(iso: string | null | undefined) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export function ScheduleEditor({
   meet,
@@ -17,6 +26,7 @@ export function ScheduleEditor({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [nextAt, setNextAt] = useState(toDatetimeLocal(meet.next_results_at));
   const [draft, setDraft] = useState({
     day: 1,
     event_number: (events.at(-1)?.event_number ?? 0) + 1,
@@ -52,6 +62,145 @@ export function ScheduleEditor({
         </p>
         <h1 className="text-3xl font-black text-cream">Schedule editor</h1>
       </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-gold/20 bg-navy-mid p-4 sm:flex-row sm:items-end">
+        <label className="min-w-0 flex-1 space-y-1 text-sm">
+          <span className="text-cream/70">Next results expected at</span>
+          <Input
+            type="datetime-local"
+            value={nextAt}
+            onChange={(e) => setNextAt(e.target.value)}
+          />
+          <p className="text-xs text-cream/50">
+            Shown on the public leaderboard so people know when to check back.
+          </p>
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={() =>
+            void (async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const response = await fetch(`/api/meets/${meet.slug}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    next_results_at: nextAt ? new Date(nextAt).toISOString() : null,
+                  }),
+                });
+                const json = await response.json();
+                if (!response.ok) throw new Error(json.error || "Save failed");
+                router.refresh();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Save failed");
+              } finally {
+                setBusy(false);
+              }
+            })()
+          }
+        >
+          Save time
+        </Button>
+      </div>
+
+      <PdfImportPanel<{ events: ImportedEvent[] }>
+        slug={meet.slug}
+        kind="schedule"
+        title="Import full programme from PDF"
+        description="Drop the official schedule. Review events, then apply. Confirmed events are left alone; new events are added."
+        applyLabel="Update schedule"
+        onApply={async (payload) => {
+          const response = await fetch(`/api/meets/${meet.slug}/events`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "bulk_upsert", events: payload.events }),
+          });
+          const json = await response.json();
+          if (!response.ok) throw new Error(json.error || "Import failed");
+          router.refresh();
+          return `Added ${json.created ?? 0}, updated ${json.updated ?? 0}, skipped confirmed ${json.skipped ?? 0}.`;
+        }}
+      >
+        {(payload, setPayload) => (
+          <div className="max-h-72 space-y-2 overflow-auto">
+            <p className="text-sm text-cream/70">
+              {payload.events?.length ?? 0} events ready to apply.
+            </p>
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-widest text-gold">
+                <tr>
+                  <th className="py-1">Day</th>
+                  <th className="py-1">No.</th>
+                  <th className="py-1">Name</th>
+                  <th className="py-1">Gender</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(payload.events ?? []).map((row, index) => (
+                  <tr key={index} className="border-t border-white/10">
+                    <td className="py-1 pr-2">
+                      <Input
+                        type="number"
+                        value={row.day}
+                        onChange={(e) => {
+                          const events = [...payload.events];
+                          events[index] = { ...row, day: Number(e.target.value) || 1 };
+                          setPayload({ events });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        type="number"
+                        value={row.event_number}
+                        onChange={(e) => {
+                          const events = [...payload.events];
+                          events[index] = {
+                            ...row,
+                            event_number: Number(e.target.value) || 1,
+                          };
+                          setPayload({ events });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        value={row.name}
+                        onChange={(e) => {
+                          const events = [...payload.events];
+                          events[index] = { ...row, name: e.target.value };
+                          setPayload({ events });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1">
+                      <select
+                        value={row.gender}
+                        onChange={(e) => {
+                          const events = [...payload.events];
+                          events[index] = {
+                            ...row,
+                            gender: e.target.value as Gender,
+                          };
+                          setPayload({ events });
+                        }}
+                        className="h-10 w-full rounded-md border border-white/20 bg-navy px-2 text-cream"
+                      >
+                        {GENDERS.map((item) => (
+                          <option key={item}>{item}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </PdfImportPanel>
 
       <form
         className="grid gap-3 rounded-xl border border-gold/20 bg-navy-mid p-4 sm:grid-cols-6"

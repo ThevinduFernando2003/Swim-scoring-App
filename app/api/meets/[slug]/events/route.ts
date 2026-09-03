@@ -5,7 +5,18 @@ import { loadMeetBySlug } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
-  action: z.enum(["create", "update", "delete"]),
+  action: z.enum(["create", "update", "delete", "bulk_upsert"]),
+  events: z
+    .array(
+      z.object({
+        day: z.number().int().positive(),
+        event_number: z.number().int().positive(),
+        name: z.string(),
+        gender: z.enum(["Men", "Women", "Boys", "Girls", "Mixed"]),
+        event_type: z.enum(["individual", "relay"]),
+      }),
+    )
+    .optional(),
   id: z.number().optional(),
   day: z.number().int().positive().optional(),
   event_number: z.number().int().positive().optional(),
@@ -29,6 +40,57 @@ export async function POST(
     }
 
     const body = schema.parse(await request.json());
+
+    if (body.action === "bulk_upsert") {
+      const incoming = body.events ?? [];
+      if (incoming.length === 0) {
+        return NextResponse.json({ error: "No events to import" }, { status: 400 });
+      }
+      const { data: existing } = await supabase
+        .from("events")
+        .select("id, day, event_number, gender, status")
+        .eq("meet_id", meet.id);
+      const key = (day: number, num: number, gender: string) =>
+        `${day}:${num}:${gender}`;
+      const byKey = new Map(
+        (existing ?? []).map((row) => [key(row.day, row.event_number, row.gender), row]),
+      );
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      for (const row of incoming) {
+        const current = byKey.get(key(row.day, row.event_number, row.gender));
+        if (!current) {
+          const { error } = await supabase.from("events").insert({
+            meet_id: meet.id,
+            day: row.day,
+            event_number: row.event_number,
+            name: row.name.trim(),
+            gender: row.gender,
+            event_type: row.event_type,
+            status: "not_uploaded",
+          });
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+          created += 1;
+          continue;
+        }
+        if (current.status === "confirmed") {
+          skipped += 1;
+          continue;
+        }
+        const { error } = await supabase
+          .from("events")
+          .update({
+            name: row.name.trim(),
+            event_type: row.event_type,
+          })
+          .eq("id", current.id)
+          .eq("meet_id", meet.id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+        updated += 1;
+      }
+      return NextResponse.json({ ok: true, created, updated, skipped });
+    }
 
     if (body.action === "create") {
       const { error } = await supabase.from("events").insert({

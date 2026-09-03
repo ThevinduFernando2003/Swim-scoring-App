@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PdfImportPanel } from "@/components/pdf-import-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Meet, Team } from "@/lib/types";
+import type { ImportedTeam, Meet, Team } from "@/lib/types";
 
 export function TeamsEditor({ meet, teams }: { meet: Meet; teams: Team[] }) {
   const router = useRouter();
@@ -44,6 +45,64 @@ export function TeamsEditor({ meet, teams }: { meet: Meet; teams: Team[] }) {
           {meet.participant_label}s
         </h1>
       </div>
+
+      <PdfImportPanel<{ teams: ImportedTeam[] }>
+        slug={meet.slug}
+        kind="teams"
+        title={`Import ${meet.participant_label.toLowerCase()} list from PDF`}
+        description="Drop the official team/school list. Review the extracted codes and names, then apply. Existing codes are updated; new codes are added."
+        applyLabel={`Update ${meet.participant_label.toLowerCase()} list`}
+        onApply={async (payload) => {
+          const response = await fetch(`/api/meets/${meet.slug}/teams`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "bulk_upsert", teams: payload.teams }),
+          });
+          const json = await response.json();
+          if (!response.ok) throw new Error(json.error || "Import failed");
+          router.refresh();
+          return `Added ${json.created ?? 0}, updated ${json.updated ?? 0}.`;
+        }}
+      >
+        {(payload, setPayload) => (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase tracking-widest text-gold">
+                <tr>
+                  <th className="py-2">Code</th>
+                  <th className="py-2">Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(payload.teams ?? []).map((row, index) => (
+                  <tr key={index} className="border-t border-white/10">
+                    <td className="py-1 pr-2">
+                      <Input
+                        value={row.code}
+                        onChange={(e) => {
+                          const teams = [...payload.teams];
+                          teams[index] = { ...row, code: e.target.value.toUpperCase() };
+                          setPayload({ teams });
+                        }}
+                      />
+                    </td>
+                    <td className="py-1">
+                      <Input
+                        value={row.name}
+                        onChange={(e) => {
+                          const teams = [...payload.teams];
+                          teams[index] = { ...row, name: e.target.value };
+                          setPayload({ teams });
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </PdfImportPanel>
 
       <form
         className="flex flex-col gap-3 rounded-xl border border-gold/20 bg-navy-mid p-4 sm:flex-row sm:items-end"

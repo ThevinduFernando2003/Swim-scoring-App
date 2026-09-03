@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TeamBadge } from "@/components/team-badge";
-import { loadMeetBySlug } from "@/lib/data";
+import { isMissingRelation, loadMeetBySlug } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +16,32 @@ export default async function SwimmerProfilePage({
   const meet = await loadMeetBySlug(supabase, slug);
   if (!meet) notFound();
 
-  const { data: swimmer } = await supabase
+  const full = await supabase
     .from("swimmers")
-    .select("id, name, gender, age_group, team_id, teams(code, name)")
+    .select("id, name, gender, age_group, age, slasu_number, registered, slasu_verified, present, team_id, teams(code, name)")
     .eq("id", id)
     .eq("meet_id", meet.id)
     .single();
+  const swimmerQuery =
+    full.error && isMissingRelation(full.error)
+      ? await supabase
+          .from("swimmers")
+          .select("id, name, gender, age_group, team_id, teams(code, name)")
+          .eq("id", id)
+          .eq("meet_id", meet.id)
+          .single()
+      : full;
+  const swimmer = swimmerQuery.data as {
+    name: string;
+    gender: string | null;
+    age_group: string | null;
+    age?: number | null;
+    slasu_number?: string | null;
+    registered?: boolean;
+    slasu_verified?: boolean;
+    present?: boolean;
+    teams: { code: string; name: string } | { code: string; name: string }[] | null;
+  } | null;
   if (!swimmer) notFound();
 
   const team = Array.isArray(swimmer.teams) ? swimmer.teams[0] : swimmer.teams;
@@ -57,7 +77,20 @@ export default async function SwimmerProfilePage({
           <TeamBadge code={team?.code ?? "—"} />
           <span>{team?.name}</span>
           {swimmer.gender ? <span>· {swimmer.gender}</span> : null}
+          {swimmer.age ? <span>· {swimmer.age}</span> : null}
           {swimmer.age_group ? <span>· {swimmer.age_group}</span> : null}
+          {swimmer.slasu_number ? <span>· SLASU {swimmer.slasu_number}</span> : null}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide">
+          <span className={`rounded-full px-2 py-0.5 ${swimmer.registered ? "bg-gold text-navy" : "bg-white/10 text-cream/50"}`}>
+            {swimmer.registered ? "Registered" : "Not marked registered"}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 ${swimmer.slasu_verified ? "bg-gold text-navy" : "bg-white/10 text-cream/50"}`}>
+            {swimmer.slasu_verified ? "SLASU confirmed" : "SLASU pending"}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 ${swimmer.present ? "bg-gold text-navy" : "bg-white/10 text-cream/50"}`}>
+            {swimmer.present ? "Present" : "Not checked in"}
+          </span>
         </div>
         <p className="mt-4 font-mono text-4xl font-black text-gold">{total} pts</p>
       </div>
