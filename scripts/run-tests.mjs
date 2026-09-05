@@ -19,6 +19,7 @@ const files = [
   "lib/times.test.ts",
   "lib/ties.test.ts",
   "lib/qualify.test.ts",
+  "lib/records.test.ts",
 ];
 
 const args = [];

@@ -4,6 +4,7 @@ import { requireMeetAccess } from "@/lib/auth";
 import { loadTeams } from "@/lib/data";
 import { parsePointsConfig } from "@/lib/points";
 import { toPublishRows } from "@/lib/publish";
+import { applyNmrFlags, eventRecordKey, nextCurrentRecord } from "@/lib/records";
 import { attachSwimmers } from "@/lib/swimmers";
 import { createClient } from "@/lib/supabase/server";
 import type { EventType } from "@/lib/types";
@@ -53,7 +54,7 @@ export async function POST(
 
     const { data: meet } = await supabase
       .from("meets")
-      .select("status, points_config")
+      .select("status, points_config, name")
       .eq("id", event.meet_id)
       .single();
     if (meet?.status === "completed" && !access.isSuperAdmin) {
@@ -86,11 +87,72 @@ export async function POST(
       event.gender ?? null,
     );
 
+    let publishRows = withSwimmers;
+    const recordKey = eventRecordKey(event.name, event.gender, event.event_type);
+    if (event.round !== "prelim") {
+      if (body.replace) {
+        await supabase.from("meet_records").delete().eq("set_at_event_id", id);
+        const { data: leftover } = await supabase
+          .from("meet_records")
+          .select("id")
+          .eq("meet_id", event.meet_id)
+          .eq("event_key", recordKey)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (leftover) {
+          await supabase
+            .from("meet_records")
+            .update({ is_current: false })
+            .eq("meet_id", event.meet_id)
+            .eq("event_key", recordKey);
+          await supabase
+            .from("meet_records")
+            .update({ is_current: true })
+            .eq("id", leftover.id);
+        }
+      }
+
+      const { data: currentRecord } = await supabase
+        .from("meet_records")
+        .select(
+          "event_key, event_name, gender, event_type, time_text, time_ms, swimmer_name, team_code, year",
+        )
+        .eq("meet_id", event.meet_id)
+        .eq("event_key", recordKey)
+        .eq("is_current", true)
+        .maybeSingle();
+
+      const flagged = applyNmrFlags(publishRows, currentRecord);
+      publishRows = flagged.rows;
+      const yearMatch = String(meet?.name ?? "").match(/(19|20)\d{2}/);
+      const next = nextCurrentRecord(
+        flagged.brokenBy,
+        event,
+        new Map(teams.map((team) => [team.id, team.code])),
+        yearMatch ? Number(yearMatch[0]) : new Date().getFullYear(),
+      );
+      if (next) {
+        await supabase
+          .from("meet_records")
+          .update({ is_current: false })
+          .eq("meet_id", event.meet_id)
+          .eq("event_key", recordKey)
+          .eq("is_current", true);
+        await supabase.from("meet_records").insert({
+          meet_id: event.meet_id,
+          ...next,
+          is_current: true,
+          set_at_event_id: id,
+        });
+      }
+    }
+
     const { error } = await supabase.rpc("publish_event_results", {
       p_event_id: id,
       p_replace: body.replace,
       p_upload_id: body.uploadId ?? null,
-      p_rows: withSwimmers,
+      p_rows: publishRows,
     });
 
     if (error) {
@@ -109,7 +171,7 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, rows: withSwimmers.length });
+    return NextResponse.json({ ok: true, rows: publishRows.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish failed";
     if (message === "unauthorized") {

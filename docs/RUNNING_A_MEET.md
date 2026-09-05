@@ -21,9 +21,10 @@ Open that meet’s admin area:
 1. Add every team/school with a short code (`COL`, `SJP`, …), or drop the official list PDF.
 2. Build the programme by hand or import the schedule PDF. Mark morning **prelims** and evening **finals** when the meet uses heats. After prelims are published, use **Build evening final from top 8**. Set **Next results expected at** so the public knows when to check back.
 3. Import the entry roster PDF, then use **Roster / check-in** on day one (registered, SLASU, present).
-4. Under **Appearance**, set this meet’s colour, official logo, and sponsors.
-5. Open **Settings**. Choose how many places score and the points for each place.
-6. Switch status to **live** when the public should see the meet.
+4. Under **Records**, enter last year’s best times. A faster published swim is marked NMR.
+5. Under **Appearance**, set this meet’s colour, official logo, and sponsors.
+6. Open **Settings**. Choose how many places score and the points for each place.
+7. Switch status to **live** when the public should see the meet.
 
 If you change points after results are already published, the app will ask whether to keep old points or recalculate everything. It will not silently rewrite scores.
 

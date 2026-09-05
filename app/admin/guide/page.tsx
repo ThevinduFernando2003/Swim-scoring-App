@@ -29,8 +29,9 @@ export default function RunningAMeetGuidePage() {
         when the meet uses heats — after prelims are published, build the
         evening final from the top 8. Set <strong>Next results expected
         at</strong> so the public knows when to check back. Import the entry
-        roster PDF, then use Roster / check-in on day one (registered, SLASU,
-        present). Under Appearance, set this meet’s colour, official logo, and
+        roster PDF,         then use Roster / check-in on day one (registered, SLASU,
+        present). Under Records, enter last year’s best times so a faster swim
+        is marked NMR. Under Appearance, set this meet’s colour, official logo, and
         sponsors. Open Settings and set how many places score and the points
         for each place. Switch status to <strong>live</strong> when the public
         should see it.

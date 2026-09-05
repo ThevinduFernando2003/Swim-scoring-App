@@ -71,6 +71,7 @@ export type EventResult = {
   result_status: ResultStatus;
   points_awarded: number;
   swimmer_id?: string | null;
+  record_flag?: string | null;
 };
 
 export type Swimmer = {
@@ -142,6 +143,22 @@ export type PublishRow = {
   result_status: ResultStatus;
   points_awarded: number;
   swimmer_id?: string | null;
+  record_flag?: string | null;
+};
+
+export type MeetRecord = {
+  id: string;
+  meet_id: string;
+  event_key: string;
+  event_name: string;
+  gender: string;
+  event_type: string;
+  time_text: string;
+  time_ms: number;
+  swimmer_name: string;
+  team_code: string | null;
+  year: number | null;
+  is_current: boolean;
 };
 
 export type StandingRow = {

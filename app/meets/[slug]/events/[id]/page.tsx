@@ -38,7 +38,7 @@ export default async function EventDetailPage({
   const { data: results } = await supabase
     .from("event_results")
     .select(
-      "position, swimmer_name, team_id, achievement, points_awarded, result_status, teams(code, name)",
+      "position, swimmer_name, team_id, achievement, points_awarded, result_status, record_flag, teams(code, name)",
     )
     .eq("event_id", eventId)
     .order("position");
@@ -206,6 +206,11 @@ export default async function EventDetailPage({
                   </td>
                   <td className="px-4 py-4 font-mono text-cream">
                     {row.achievement}
+                    {row.record_flag === "NMR" ? (
+                      <span className="ml-2 rounded-full bg-gold px-2 py-0.5 text-[10px] font-black text-navy">
+                        NMR
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-xl font-black text-cream">
                     {row.points_awarded}

@@ -16,6 +16,7 @@ export function MeetSubnav({
     { href: base, label: "Leaderboard" },
     { href: `${base}/schedule`, label: "Schedule" },
     { href: `${base}/swimmers`, label: "Swimmers" },
+    { href: `${base}/records`, label: "Records" },
     { href: `${base}/check-in`, label: "Check-in" },
   ];
 

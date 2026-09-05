@@ -4,6 +4,7 @@ import type {
   EventResult,
   Meet,
   MeetEvent,
+  MeetRecord,
   MeetSponsor,
   OrgSettings,
   Swimmer,
@@ -141,16 +142,23 @@ export async function loadEvents(supabase: SupabaseClient, meetId?: string) {
 }
 
 export async function loadResults(supabase: SupabaseClient, eventIds?: number[]) {
-  let query = supabase
-    .from("event_results")
-    .select(
-      "id, event_id, position, swimmer_name, team_id, achievement, result_status, points_awarded, swimmer_id",
-    );
+  const fullCols =
+    "id, event_id, position, swimmer_name, team_id, achievement, result_status, points_awarded, swimmer_id, record_flag";
+  const fallbackCols =
+    "id, event_id, position, swimmer_name, team_id, achievement, result_status, points_awarded, swimmer_id";
+  let query = supabase.from("event_results").select(fullCols);
   if (eventIds) {
     if (eventIds.length === 0) return [] as EventResult[];
     query = query.in("event_id", eventIds);
   }
-  const { data, error } = await query;
+  let { data, error } = await query;
+  if (error && isMissingRelation(error)) {
+    let fallback = supabase.from("event_results").select(fallbackCols);
+    if (eventIds) fallback = fallback.in("event_id", eventIds);
+    const retry = await fallback;
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
   if (error) throw error;
   return (data ?? []) as EventResult[];
 }
@@ -191,6 +199,22 @@ export async function loadSwimmers(supabase: SupabaseClient, meetId: string) {
       team_name: team?.name,
     } as Swimmer;
   });
+}
+
+export async function loadMeetRecords(supabase: SupabaseClient, meetId: string) {
+  const { data, error } = await supabase
+    .from("meet_records")
+    .select(
+      "id, meet_id, event_key, event_name, gender, event_type, time_text, time_ms, swimmer_name, team_code, year, is_current",
+    )
+    .eq("meet_id", meetId)
+    .eq("is_current", true)
+    .order("event_name");
+  if (error) {
+    if (isMissingRelation(error)) return [] as MeetRecord[];
+    throw error;
+  }
+  return (data ?? []) as MeetRecord[];
 }
 
 export async function loadSponsors(supabase: SupabaseClient, meetId: string) {

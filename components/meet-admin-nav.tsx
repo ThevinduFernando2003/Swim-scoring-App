@@ -10,6 +10,7 @@ export function MeetAdminNav({ meet, access }: { meet: Meet; access: Access }) {
     { href: `${base}/teams`, label: meet.participant_label + "s", manage: true },
     { href: `${base}/roster`, label: "Roster / check-in", manage: false },
     { href: `${base}/schedule`, label: "Schedule", manage: true },
+    { href: `${base}/records`, label: "Records", manage: true },
     { href: `${base}/appearance`, label: "Appearance", manage: true },
     { href: `${base}/officials`, label: "Officials", manage: true },
   ];
