@@ -54,7 +54,7 @@ export async function POST(
 
     const { data: meet } = await supabase
       .from("meets")
-      .select("status, points_config, name")
+      .select("status, points_config, name, championship_id, year")
       .eq("id", event.meet_id)
       .single();
     if (meet?.status === "completed" && !access.isSuperAdmin) {
@@ -89,58 +89,64 @@ export async function POST(
 
     let publishRows = withSwimmers;
     const recordKey = eventRecordKey(event.name, event.gender, event.event_type);
+    const championshipId = meet?.championship_id as string | null | undefined;
+    function scopeRecords<T extends { eq: (col: string, val: string) => T }>(query: T) {
+      return championshipId
+        ? query.eq("championship_id", championshipId)
+        : query.eq("meet_id", event.meet_id);
+    }
     if (event.round !== "prelim") {
       if (body.replace) {
         await supabase.from("meet_records").delete().eq("set_at_event_id", id);
-        const { data: leftover } = await supabase
-          .from("meet_records")
-          .select("id")
-          .eq("meet_id", event.meet_id)
-          .eq("event_key", recordKey)
+        const leftoverQuery = scopeRecords(
+          supabase.from("meet_records").select("id").eq("event_key", recordKey),
+        );
+        const { data: leftover } = await leftoverQuery
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
         if (leftover) {
-          await supabase
-            .from("meet_records")
-            .update({ is_current: false })
-            .eq("meet_id", event.meet_id)
-            .eq("event_key", recordKey);
-          await supabase
-            .from("meet_records")
-            .update({ is_current: true })
-            .eq("id", leftover.id);
+          await scopeRecords(
+            supabase.from("meet_records").update({ is_current: false }).eq("event_key", recordKey),
+          );
+          await supabase.from("meet_records").update({ is_current: true }).eq("id", leftover.id);
         }
       }
 
-      const { data: currentRecord } = await supabase
-        .from("meet_records")
-        .select(
-          "event_key, event_name, gender, event_type, time_text, time_ms, swimmer_name, team_code, year",
-        )
-        .eq("meet_id", event.meet_id)
-        .eq("event_key", recordKey)
-        .eq("is_current", true)
-        .maybeSingle();
+      const { data: currentRecord } = await scopeRecords(
+        supabase
+          .from("meet_records")
+          .select(
+            "event_key, event_name, gender, event_type, time_text, time_ms, swimmer_name, team_code, year",
+          )
+          .eq("event_key", recordKey)
+          .eq("is_current", true),
+      ).maybeSingle();
 
       const flagged = applyNmrFlags(publishRows, currentRecord);
       publishRows = flagged.rows;
-      const yearMatch = String(meet?.name ?? "").match(/(19|20)\d{2}/);
+      const year =
+        meet?.year ??
+        (String(meet?.name ?? "").match(/(19|20)\d{2}/)
+          ? Number(String(meet?.name ?? "").match(/(19|20)\d{2}/)?.[0])
+          : new Date().getFullYear());
       const next = nextCurrentRecord(
         flagged.brokenBy,
         event,
         new Map(teams.map((team) => [team.id, team.code])),
-        yearMatch ? Number(yearMatch[0]) : new Date().getFullYear(),
+        year,
       );
       if (next) {
-        await supabase
-          .from("meet_records")
-          .update({ is_current: false })
-          .eq("meet_id", event.meet_id)
-          .eq("event_key", recordKey)
-          .eq("is_current", true);
+        await scopeRecords(
+          supabase
+            .from("meet_records")
+            .update({ is_current: false })
+            .eq("event_key", recordKey)
+            .eq("is_current", true),
+        );
         await supabase.from("meet_records").insert({
           meet_id: event.meet_id,
+          championship_id: championshipId ?? null,
           ...next,
           is_current: true,
           set_at_event_id: id,

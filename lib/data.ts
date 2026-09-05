@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parsePointsConfig } from "./points";
 import type {
+  Championship,
   EventResult,
   Meet,
   MeetEvent,
@@ -20,7 +21,7 @@ export const DEFAULT_ORG: OrgSettings = {
 };
 
 const MEET_COLUMNS =
-  "id, slug, name, participant_label, status, points_config, pdfs_public, created_at, logo_url, primary_color, background_url, next_results_at";
+  "id, slug, name, participant_label, status, points_config, pdfs_public, created_at, logo_url, primary_color, background_url, next_results_at, championship_id, year";
 
 function asMeet(row: Record<string, unknown>): Meet {
   return {
@@ -35,6 +36,8 @@ function asMeet(row: Record<string, unknown>): Meet {
     primary_color: row.primary_color ? String(row.primary_color) : null,
     background_url: row.background_url ? String(row.background_url) : null,
     next_results_at: row.next_results_at ? String(row.next_results_at) : null,
+    championship_id: row.championship_id ? String(row.championship_id) : null,
+    year: row.year != null ? Number(row.year) : null,
     created_at: row.created_at ? String(row.created_at) : undefined,
   };
 }
@@ -201,20 +204,75 @@ export async function loadSwimmers(supabase: SupabaseClient, meetId: string) {
   });
 }
 
-export async function loadMeetRecords(supabase: SupabaseClient, meetId: string) {
-  const { data, error } = await supabase
+export async function loadMeetRecords(
+  supabase: SupabaseClient,
+  meetId: string,
+  championshipId?: string | null,
+) {
+  const columns =
+    "id, meet_id, event_key, event_name, gender, event_type, time_text, time_ms, swimmer_name, team_code, year, is_current";
+  let query = supabase
     .from("meet_records")
-    .select(
-      "id, meet_id, event_key, event_name, gender, event_type, time_text, time_ms, swimmer_name, team_code, year, is_current",
-    )
-    .eq("meet_id", meetId)
+    .select(columns)
     .eq("is_current", true)
     .order("event_name");
+  query = championshipId
+    ? query.eq("championship_id", championshipId)
+    : query.eq("meet_id", meetId);
+  const { data, error } = await query;
   if (error) {
     if (isMissingRelation(error)) return [] as MeetRecord[];
     throw error;
   }
+  if (championshipId && (data ?? []).length === 0) {
+    const fallback = await supabase
+      .from("meet_records")
+      .select(columns)
+      .eq("meet_id", meetId)
+      .eq("is_current", true)
+      .order("event_name");
+    if (!fallback.error) return (fallback.data ?? []) as MeetRecord[];
+  }
   return (data ?? []) as MeetRecord[];
+}
+
+export async function loadChampionships(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from("championships")
+    .select("id, slug, name, participant_label")
+    .order("name");
+  if (error) {
+    if (isMissingRelation(error)) return [] as Championship[];
+    throw error;
+  }
+  return (data ?? []) as Championship[];
+}
+
+export async function loadChampionshipBySlug(supabase: SupabaseClient, slug: string) {
+  const { data, error } = await supabase
+    .from("championships")
+    .select("id, slug, name, participant_label")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as Championship;
+}
+
+export async function loadChampionshipEditions(
+  supabase: SupabaseClient,
+  championshipId: string,
+) {
+  const { data, error } = await supabase
+    .from("meets")
+    .select(MEET_COLUMNS)
+    .eq("championship_id", championshipId)
+    .neq("status", "draft")
+    .order("year", { ascending: false });
+  if (error) {
+    if (isMissingRelation(error)) return [] as Meet[];
+    throw error;
+  }
+  return (data ?? []).map((row) => asMeet(row as Record<string, unknown>));
 }
 
 export async function loadSponsors(supabase: SupabaseClient, meetId: string) {

@@ -18,8 +18,9 @@ export default function RunningAMeetGuidePage() {
         A Super Admin opens Admin → New meet. Enter the championship name, a
         short URL name (slug), and whether participants are Universities,
         Schools, or Clubs. You can start blank or copy another meet’s event
-        list and points table. New meets start as <strong>draft</strong> (not
-        shown to the public).
+        list and points table. Set the year and attach it to a championship
+        series so next year’s edition can share records and past results. New
+        meets start as <strong>draft</strong> (not shown to the public).
       </p>
       <h2 className="text-xl font-bold text-gold">2. Set up teams, schedule, points</h2>
       <p>

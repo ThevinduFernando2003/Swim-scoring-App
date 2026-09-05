@@ -1,8 +1,14 @@
 import { notFound } from "next/navigation";
+import { EditionSwitcher } from "@/components/edition-switcher";
 import { MeetSponsors } from "@/components/meet-sponsors";
 import { MeetSubnav } from "@/components/meet-subnav";
 import { NextResultsBanner } from "@/components/next-results-banner";
-import { loadMeetBySlug, loadSponsors } from "@/lib/data";
+import {
+  loadChampionshipEditions,
+  loadChampionships,
+  loadMeetBySlug,
+  loadSponsors,
+} from "@/lib/data";
 import { getAccess } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
@@ -25,6 +31,13 @@ export default async function MeetLayout({
   } = await supabase.auth.getUser();
   const access = user ? await getAccess(supabase, user, meet.id) : null;
   const sponsors = await loadSponsors(supabase, meet.id);
+  const championships = meet.championship_id
+    ? await loadChampionships(supabase)
+    : [];
+  const championship = championships.find((item) => item.id === meet.championship_id) ?? null;
+  const editions = championship
+    ? await loadChampionshipEditions(supabase, championship.id)
+    : [];
 
   return (
     <div
@@ -44,6 +57,13 @@ export default async function MeetLayout({
         <MeetSponsors sponsors={sponsors} placement="background" />
       )}
       <div className="relative z-10">
+        {championship ? (
+          <EditionSwitcher
+            championship={championship}
+            editions={editions}
+            currentSlug={meet.slug}
+          />
+        ) : null}
         <MeetSubnav
           meet={meet}
           isAdmin={Boolean(access?.canScore)}

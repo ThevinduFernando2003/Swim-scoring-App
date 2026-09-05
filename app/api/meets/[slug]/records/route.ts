@@ -57,15 +57,19 @@ export async function POST(
     }
 
     const key = eventRecordKey(eventName, gender, eventType);
-    await supabase
+    let unset = supabase
       .from("meet_records")
       .update({ is_current: false })
-      .eq("meet_id", meet.id)
       .eq("event_key", key)
       .eq("is_current", true);
+    unset = meet.championship_id
+      ? unset.eq("championship_id", meet.championship_id)
+      : unset.eq("meet_id", meet.id);
+    await unset;
 
     const { error } = await supabase.from("meet_records").insert({
       meet_id: meet.id,
+      championship_id: meet.championship_id ?? null,
       event_key: key,
       event_name: eventName,
       gender,

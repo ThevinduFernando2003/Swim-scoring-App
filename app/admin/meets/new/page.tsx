@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { NewMeetForm } from "@/components/new-meet-form";
+import { loadChampionships } from "@/lib/data";
 import { isSuperAdmin } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import type { Meet } from "@/lib/types";
@@ -30,5 +31,6 @@ export default async function NewMeetPage() {
     pdfs_public: row.pdfs_public !== false,
   }));
 
-  return <NewMeetForm cloneSources={cloneSources} />;
+  const championships = await loadChampionships(supabase);
+  return <NewMeetForm cloneSources={cloneSources} championships={championships} />;
 }

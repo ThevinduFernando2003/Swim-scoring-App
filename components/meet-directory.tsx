@@ -32,6 +32,9 @@ export function MeetDirectory({
               <MeetStatusBadge status={meet.status} />
             </div>
             <h2 className="mt-2 text-xl font-black text-cream">{meet.name}</h2>
+            {meet.year ? (
+              <p className="mt-1 text-sm text-cream/60">{meet.year} edition</p>
+            ) : null}
             <p className="mt-3 text-sm font-semibold text-gold">Open leaderboard →</p>
           </Link>
         </li>

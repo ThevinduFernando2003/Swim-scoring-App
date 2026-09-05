@@ -12,7 +12,7 @@ A Super Admin opens **Admin → New meet**. Enter:
 - Short URL name (slug), for example `sl-schools-2026`
 - Whether participants are Universities, Schools, or Clubs
 
-You can start with an empty programme or copy another meet’s event list and points table. New meets start as **draft** (the public cannot see them).
+You can start with an empty programme or copy another meet’s event list and points table. Set the **year** and attach it to a championship series (for example Inter University) so next year’s edition can reuse records and people can open past results. New meets start as **draft** (the public cannot see them).
 
 ## 2. Set up teams, schedule, and points
 

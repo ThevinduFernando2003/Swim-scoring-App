@@ -21,6 +21,6 @@ export default async function RecordsAdminPage({
   if (!meet) notFound();
   const access = await getAccess(supabase, user, meet.id);
   if (!access.canManage) redirect(`/meets/${slug}/admin`);
-  const records = await loadMeetRecords(supabase, meet.id);
+  const records = await loadMeetRecords(supabase, meet.id, meet.championship_id);
   return <RecordsEditor meet={meet} records={records} />;
 }

@@ -30,6 +30,7 @@ Public pages: `/` meet list · `/meets/[slug]` leaderboard · `/login` officials
 - Tied clock times share a place (1=, 1=) and both score those points
 - Morning prelims / evening finals: top 8 qualify (ties for last place all go through, plus two reserves)
 - Seeded meet records; a faster published time is marked NMR and updates the board
+- Championship series with yearly editions and a past-results year switcher
 - Day-one check-in: registered, SLASU confirmed, present (public search + desk ticks)
 - Admin-set “next results expected at” time on public meet pages
 
@@ -63,8 +64,8 @@ cp .env.example .env.local
 
 Fill `.env.local` (see `.env.example`). In the [Supabase](https://supabase.com) SQL editor:
 
-1. **New project:** `supabase/schema.sql` then `supabase/seed.sql` then `supabase/migration_v2.sql` then `supabase/migration_v3.sql`
-2. **Existing live database:** run **only** `supabase/migration_v2.sql` (keeps Inter Uni results as meet `inter-uni-2026`), then `migration_v3.sql`, `migration_v4.sql`, and `migration_v5.sql`
+1. **New project:** `supabase/schema.sql` then `supabase/seed.sql` then `migration_v2.sql` through `migration_v6.sql`
+2. **Existing live database:** run **only** `supabase/migration_v2.sql` (keeps Inter Uni results as meet `inter-uni-2026`), then `migration_v3.sql` through `migration_v6.sql`
 
 Create an official user under **Authentication → Users**. The migration promotes `admin@gmail.com` to super admin if that user exists.
 

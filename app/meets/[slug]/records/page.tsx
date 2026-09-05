@@ -13,7 +13,7 @@ export default async function PublicRecordsPage({
   const supabase = await createClient();
   const meet = await loadMeetBySlug(supabase, slug);
   if (!meet) notFound();
-  const records = await loadMeetRecords(supabase, meet.id);
+  const records = await loadMeetRecords(supabase, meet.id, meet.championship_id);
 
   return (
     <div className="space-y-6">

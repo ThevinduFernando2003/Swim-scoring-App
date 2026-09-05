@@ -25,7 +25,16 @@ export type Meet = {
   primary_color?: string | null;
   background_url?: string | null;
   next_results_at?: string | null;
+  championship_id?: string | null;
+  year?: number | null;
   created_at?: string;
+};
+
+export type Championship = {
+  id: string;
+  slug: string;
+  name: string;
+  participant_label: string;
 };
 
 export type MeetSponsor = {
