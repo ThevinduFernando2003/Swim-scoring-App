@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DownloadCsvButton } from "@/components/download-csv-button";
+import { QualifiersList } from "@/components/qualifiers-list";
 import { TeamBadge } from "@/components/team-badge";
-import { loadMeetBySlug } from "@/lib/data";
+import { loadMeetBySlug, loadTeams } from "@/lib/data";
+import { qualifyFromResults } from "@/lib/qualify";
 import { formatPlace, tiedPositions } from "@/lib/ties";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +26,9 @@ export default async function EventDetailPage({
 
   const { data: event } = await supabase
     .from("events")
-    .select("id, meet_id, day, event_number, name, gender, event_type, status")
+    .select(
+      "id, meet_id, day, event_number, name, gender, event_type, status, round, session, linked_event_id, qualify_count, scores_points",
+    )
     .eq("id", eventId)
     .eq("meet_id", meet.id)
     .single();
@@ -34,7 +38,7 @@ export default async function EventDetailPage({
   const { data: results } = await supabase
     .from("event_results")
     .select(
-      "position, swimmer_name, achievement, points_awarded, result_status, teams(code, name)",
+      "position, swimmer_name, team_id, achievement, points_awarded, result_status, teams(code, name)",
     )
     .eq("event_id", eventId)
     .order("position");
@@ -69,6 +73,21 @@ export default async function EventDetailPage({
   const medals = ["🥇", "🥈", "🥉"];
   const rows = results ?? [];
   const ties = tiedPositions(rows);
+  const teams = await loadTeams(supabase, meet.id);
+  const qualifiers =
+    event.round === "prelim"
+      ? qualifyFromResults(rows, teams, event.qualify_count ?? 8)
+      : [];
+
+  let linked: { id: number; name: string; status: string; round: string | null } | null = null;
+  if (event.linked_event_id) {
+    const { data } = await supabase
+      .from("events")
+      .select("id, name, status, round")
+      .eq("id", event.linked_event_id)
+      .maybeSingle();
+    linked = data;
+  }
 
   return (
     <div className="space-y-6">
@@ -86,6 +105,26 @@ export default async function EventDetailPage({
           <h1 className="text-3xl font-black text-cream sm:text-4xl">
             {event.name}
           </h1>
+          <p className="mt-1 text-sm text-cream/60">
+            {event.round && event.round !== "timed_final" ? `${event.round} · ` : ""}
+            {event.session && event.session !== "unspecified" ? event.session : ""}
+            {event.round === "prelim" ? " · does not score" : ""}
+          </p>
+          {linked && linked.status === "confirmed" ? (
+            <Link
+              href={`/meets/${meet.slug}/events/${linked.id}`}
+              className="mt-2 inline-block text-sm font-semibold text-gold"
+            >
+              {linked.round === "final" ? "Evening final →" : "Morning prelims →"}
+            </Link>
+          ) : linked ? (
+            <p className="mt-2 text-sm text-cream/50">
+              {linked.round === "final"
+                ? "Evening final not published yet"
+                : "Linked heat: "}
+              {linked.name}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           {pdfUrl ? (
@@ -118,6 +157,10 @@ export default async function EventDetailPage({
           />
         </div>
       </div>
+
+      {qualifiers.length > 0 ? (
+        <QualifiersList rows={qualifiers} participantLabel={meet.participant_label} />
+      ) : null}
 
       <div className="overflow-hidden rounded-xl border border-gold/20">
         <table className="w-full text-left">

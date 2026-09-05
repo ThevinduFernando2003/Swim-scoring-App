@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { detectRound, detectSession } from "./qualify.ts";
 import type {
   EventType,
   Gender,
@@ -158,6 +159,7 @@ Rules:
 - event_number is the printed event number.
 - gender must be Men, Women, Boys, Girls, or Mixed.
 - event_type is "relay" if the name contains Relay, otherwise "individual".
+- If the sheet says Prelims / Heats, set the name to include Prelims. If it says Final, include Final.
 - Include every event. Do not invent events.`;
 
 export function parseImportedTeams(raw: unknown): ImportedTeam[] {
@@ -224,12 +226,15 @@ export function parseImportedEvents(raw: unknown): ImportedEvent[] {
       const event_type: EventType =
         typeRaw === "relay" || /relay/i.test(name) ? "relay" : "individual";
       const day = Number(item.day);
+      const round = detectRound(name);
       return {
         day: Number.isFinite(day) && day > 0 ? day : 1,
         event_number,
         name,
         gender,
         event_type,
+        round,
+        session: detectSession(name, round),
       } satisfies ImportedEvent;
     })
     .filter((row): row is ImportedEvent => row !== null);

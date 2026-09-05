@@ -116,15 +116,28 @@ export async function loadTeams(supabase: SupabaseClient, meetId?: string) {
 }
 
 export async function loadEvents(supabase: SupabaseClient, meetId?: string) {
-  let query = supabase
-    .from("events")
-    .select("id, meet_id, day, event_number, name, gender, event_type, status")
-    .order("day")
-    .order("event_number");
+  const columns =
+    "id, meet_id, day, event_number, name, gender, event_type, status, round, session, linked_event_id, qualify_count, scores_points";
+  const fallbackCols = "id, meet_id, day, event_number, name, gender, event_type, status";
+  let query = supabase.from("events").select(columns).order("day").order("event_number");
   if (meetId) query = query.eq("meet_id", meetId);
-  const { data, error } = await query;
+  let { data, error } = await query;
+  if (error && isMissingRelation(error)) {
+    let fallback = supabase.from("events").select(fallbackCols).order("day").order("event_number");
+    if (meetId) fallback = fallback.eq("meet_id", meetId);
+    const retry = await fallback;
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
   if (error) throw error;
-  return (data ?? []) as MeetEvent[];
+  return (data ?? []).map((row) => ({
+    ...row,
+    round: "round" in row ? row.round : "timed_final",
+    session: "session" in row ? row.session : "unspecified",
+    linked_event_id: "linked_event_id" in row ? row.linked_event_id : null,
+    qualify_count: "qualify_count" in row ? row.qualify_count : 8,
+    scores_points: "scores_points" in row ? row.scores_points : true,
+  })) as MeetEvent[];
 }
 
 export async function loadResults(supabase: SupabaseClient, eventIds?: number[]) {

@@ -19,7 +19,7 @@ You can start with an empty programme or copy another meet’s event list and po
 Open that meet’s admin area:
 
 1. Add every team/school with a short code (`COL`, `SJP`, …), or drop the official list PDF.
-2. Build the programme by hand or import the schedule PDF. Set **Next results expected at** so the public knows when to check back.
+2. Build the programme by hand or import the schedule PDF. Mark morning **prelims** and evening **finals** when the meet uses heats. After prelims are published, use **Build evening final from top 8**. Set **Next results expected at** so the public knows when to check back.
 3. Import the entry roster PDF, then use **Roster / check-in** on day one (registered, SLASU, present).
 4. Under **Appearance**, set this meet’s colour, official logo, and sponsors.
 5. Open **Settings**. Choose how many places score and the points for each place.

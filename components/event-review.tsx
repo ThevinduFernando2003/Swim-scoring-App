@@ -157,6 +157,18 @@ export function EventReview({
           {event.event_type}
         </p>
         <h1 className="text-3xl font-black text-cream">{event.name}</h1>
+        {event.round === "prelim" ? (
+          <p className="mt-2 text-sm text-cream/70">
+            Morning prelims do not score team points. After you publish, build
+            the evening final for the top {event.qualify_count ?? 8} (ties for
+            the last place all go through; next two are reserves).
+          </p>
+        ) : null}
+        {event.round === "final" ? (
+          <p className="mt-2 text-sm text-cream/70">
+            Evening final — these places score.
+          </p>
+        ) : null}
       </div>
 
       {readOnly ? (
@@ -399,6 +411,35 @@ export function EventReview({
       ) : null}
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
+
+      {event.round === "prelim" && event.status === "confirmed" ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy !== null}
+          onClick={() =>
+            void (async () => {
+              setBusy("publish");
+              setError(null);
+              try {
+                const response = await fetch(`/api/events/${event.id}/qualify`, {
+                  method: "POST",
+                });
+                const json = await response.json();
+                if (!response.ok) throw new Error(json.error || "Could not create final");
+                router.push(`${adminHome}/events/${json.finalId}`);
+                router.refresh();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Could not create final");
+              } finally {
+                setBusy(null);
+              }
+            })()
+          }
+        >
+          Build evening final from top {event.qualify_count ?? 8}
+        </Button>
+      ) : null}
 
       <Button
         type="button"

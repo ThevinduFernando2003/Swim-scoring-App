@@ -21,7 +21,9 @@ export default async function AdminEventPage({
 
   const { data: event } = await supabase
     .from("events")
-    .select("id, meet_id, day, event_number, name, gender, event_type, status")
+    .select(
+      "id, meet_id, day, event_number, name, gender, event_type, status, round, session, linked_event_id, qualify_count, scores_points",
+    )
     .eq("id", id)
     .eq("meet_id", meet.id)
     .single();

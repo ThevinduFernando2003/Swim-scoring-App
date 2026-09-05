@@ -49,3 +49,16 @@ test("parses schedule and marks relays from the name", () => {
   assert.equal(events[1].event_type, "relay");
   assert.equal(events[1].gender, "Women");
 });
+
+test("marks prelims and finals from the event name", () => {
+  const events = parseImportedEvents({
+    events: [
+      { day: 1, event_number: 5, name: "200m Freestyle Prelims", gender: "Men" },
+      { day: 1, event_number: 5, name: "200m Freestyle Final", gender: "Men" },
+    ],
+  });
+  assert.equal(events[0].round, "prelim");
+  assert.equal(events[0].session, "morning");
+  assert.equal(events[1].round, "final");
+  assert.equal(events[1].session, "evening");
+});

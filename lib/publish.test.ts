@@ -72,6 +72,12 @@ test("relay uses the relay table", () => {
   assert.equal(rows[0].points_awarded, 10);
 });
 
+test("prelims publish with zero points", () => {
+  const { rows } = toPublishRows("individual", extracted, teams, undefined, false);
+  assert.equal(rows[0].points_awarded, 0);
+  assert.equal(rows[1].points_awarded, 0);
+});
+
 test("tied times share place and both score that place", () => {
   const { rows } = toPublishRows(
     "individual",

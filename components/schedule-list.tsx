@@ -69,6 +69,12 @@ export function ScheduleList({
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-widest text-gold">
                   Event {event.event_number} · {event.gender} · {event.event_type}
+                  {event.round && event.round !== "timed_final"
+                    ? ` · ${event.round}`
+                    : ""}
+                  {event.session && event.session !== "unspecified"
+                    ? ` · ${event.session}`
+                    : ""}
                 </p>
                 <p className="truncate text-lg font-semibold text-cream">
                   {event.name}

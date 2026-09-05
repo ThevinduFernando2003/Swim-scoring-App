@@ -14,6 +14,8 @@ const schema = z.object({
         name: z.string(),
         gender: z.enum(["Men", "Women", "Boys", "Girls", "Mixed"]),
         event_type: z.enum(["individual", "relay"]),
+        round: z.enum(["prelim", "final", "timed_final"]).optional(),
+        session: z.enum(["morning", "evening", "unspecified"]).optional(),
       }),
     )
     .optional(),
@@ -23,6 +25,11 @@ const schema = z.object({
   name: z.string().optional(),
   gender: z.enum(["Men", "Women", "Boys", "Girls", "Mixed"]).optional(),
   event_type: z.enum(["individual", "relay"]).optional(),
+  round: z.enum(["prelim", "final", "timed_final"]).optional(),
+  session: z.enum(["morning", "evening", "unspecified"]).optional(),
+  linked_event_id: z.number().int().nullable().optional(),
+  qualify_count: z.number().int().positive().optional(),
+  scores_points: z.boolean().optional(),
 });
 
 export async function POST(
@@ -48,18 +55,22 @@ export async function POST(
       }
       const { data: existing } = await supabase
         .from("events")
-        .select("id, day, event_number, gender, status")
+        .select("id, day, event_number, gender, status, round")
         .eq("meet_id", meet.id);
-      const key = (day: number, num: number, gender: string) =>
-        `${day}:${num}:${gender}`;
+      const key = (day: number, num: number, gender: string, round: string) =>
+        `${day}:${num}:${gender}:${round}`;
       const byKey = new Map(
-        (existing ?? []).map((row) => [key(row.day, row.event_number, row.gender), row]),
+        (existing ?? []).map((row) => [
+          key(row.day, row.event_number, row.gender, row.round ?? "timed_final"),
+          row,
+        ]),
       );
       let created = 0;
       let updated = 0;
       let skipped = 0;
       for (const row of incoming) {
-        const current = byKey.get(key(row.day, row.event_number, row.gender));
+        const round = row.round ?? "timed_final";
+        const current = byKey.get(key(row.day, row.event_number, row.gender, round));
         if (!current) {
           const { error } = await supabase.from("events").insert({
             meet_id: meet.id,
@@ -69,6 +80,9 @@ export async function POST(
             gender: row.gender,
             event_type: row.event_type,
             status: "not_uploaded",
+            round,
+            session: row.session ?? "unspecified",
+            scores_points: round !== "prelim",
           });
           if (error) return NextResponse.json({ error: error.message }, { status: 400 });
           created += 1;
@@ -93,6 +107,7 @@ export async function POST(
     }
 
     if (body.action === "create") {
+      const round = body.round ?? "timed_final";
       const { error } = await supabase.from("events").insert({
         meet_id: meet.id,
         day: body.day ?? 1,
@@ -101,6 +116,11 @@ export async function POST(
         gender: body.gender ?? "Men",
         event_type: body.event_type ?? "individual",
         status: "not_uploaded",
+        round,
+        session: body.session ?? (round === "prelim" ? "morning" : round === "final" ? "evening" : "unspecified"),
+        qualify_count: body.qualify_count ?? 8,
+        scores_points: body.scores_points ?? round !== "prelim",
+        linked_event_id: body.linked_event_id ?? null,
       });
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -120,6 +140,11 @@ export async function POST(
         event_number: body.event_number,
         name: body.name?.trim(),
       };
+      if (body.round) patch.round = body.round;
+      if (body.session) patch.session = body.session;
+      if (body.qualify_count) patch.qualify_count = body.qualify_count;
+      if (body.scores_points != null) patch.scores_points = body.scores_points;
+      if (body.linked_event_id !== undefined) patch.linked_event_id = body.linked_event_id;
       if (current.status === "confirmed") {
         if (body.gender && body.gender !== current.gender) {
           return NextResponse.json(

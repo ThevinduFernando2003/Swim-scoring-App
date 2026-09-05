@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 import { PdfImportPanel } from "@/components/pdf-import-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { EventType, Gender, ImportedEvent, Meet, MeetEvent } from "@/lib/types";
-import { EVENT_TYPES, GENDERS } from "@/lib/types";
+import type {
+  EventRound,
+  EventSession,
+  EventType,
+  Gender,
+  ImportedEvent,
+  Meet,
+  MeetEvent,
+} from "@/lib/types";
+import { EVENT_ROUNDS, EVENT_SESSIONS, EVENT_TYPES, GENDERS } from "@/lib/types";
 
 function toDatetimeLocal(iso: string | null | undefined) {
   if (!iso) return "";
@@ -33,6 +41,9 @@ export function ScheduleEditor({
     name: "",
     gender: "Men" as Gender,
     event_type: "individual" as EventType,
+    round: "timed_final" as EventRound,
+    session: "unspecified" as EventSession,
+    qualify_count: 8,
   });
 
   async function request(body: Record<string, unknown>) {
@@ -203,7 +214,7 @@ export function ScheduleEditor({
       </PdfImportPanel>
 
       <form
-        className="grid gap-3 rounded-xl border border-gold/20 bg-navy-mid p-4 sm:grid-cols-6"
+        className="grid gap-3 rounded-xl border border-gold/20 bg-navy-mid p-4 sm:grid-cols-8"
         onSubmit={(e) => {
           e.preventDefault();
           void request({ action: "create", ...draft });
@@ -278,7 +289,49 @@ export function ScheduleEditor({
             ))}
           </select>
         </label>
-        <div className="sm:col-span-6">
+        <label className="space-y-1 text-sm">
+          <span className="text-cream/70">Round</span>
+          <select
+            value={draft.round}
+            onChange={(e) =>
+              setDraft((current) => ({
+                ...current,
+                round: e.target.value as EventRound,
+                session:
+                  e.target.value === "prelim"
+                    ? "morning"
+                    : e.target.value === "final"
+                      ? "evening"
+                      : current.session,
+              }))
+            }
+            className="h-10 w-full rounded-md border border-white/20 bg-navy px-2 text-cream"
+          >
+            {EVENT_ROUNDS.map((item) => (
+              <option key={item} value={item}>
+                {item === "timed_final" ? "timed final" : item}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm">
+          <span className="text-cream/70">Session</span>
+          <select
+            value={draft.session}
+            onChange={(e) =>
+              setDraft((current) => ({
+                ...current,
+                session: e.target.value as EventSession,
+              }))
+            }
+            className="h-10 w-full rounded-md border border-white/20 bg-navy px-2 text-cream"
+          >
+            {EVENT_SESSIONS.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <div className="sm:col-span-8">
           <Button type="submit" disabled={busy}>
             Add event
           </Button>
@@ -294,7 +347,11 @@ export function ScheduleEditor({
             event={event}
             busy={busy}
             onSave={(patch) =>
-              void request({ action: "update", id: event.id, ...patch })
+              void request({
+                action: "update",
+                id: event.id,
+                ...patch,
+              })
             }
             onDelete={() => void request({ action: "delete", id: event.id })}
           />
@@ -321,10 +378,12 @@ function EventRow({
   const [name, setName] = useState(event.name);
   const [gender, setGender] = useState(event.gender);
   const [eventType, setEventType] = useState(event.event_type);
+  const [round, setRound] = useState<EventRound>(event.round ?? "timed_final");
+  const [session, setSession] = useState<EventSession>(event.session ?? "unspecified");
 
   return (
     <li className="space-y-2 rounded-xl border border-gold/20 bg-navy-mid p-3">
-      <div className="grid gap-2 sm:grid-cols-6">
+      <div className="grid gap-2 sm:grid-cols-8">
         <Input
           type="number"
           value={day}
@@ -360,6 +419,26 @@ function EventRow({
             <option key={item}>{item}</option>
           ))}
         </select>
+        <select
+          value={round}
+          onChange={(e) => setRound(e.target.value as EventRound)}
+          className="h-10 rounded-md border border-white/20 bg-navy px-2 text-cream"
+        >
+          {EVENT_ROUNDS.map((item) => (
+            <option key={item} value={item}>
+              {item === "timed_final" ? "timed final" : item}
+            </option>
+          ))}
+        </select>
+        <select
+          value={session}
+          onChange={(e) => setSession(e.target.value as EventSession)}
+          className="h-10 rounded-md border border-white/20 bg-navy px-2 text-cream"
+        >
+          {EVENT_SESSIONS.map((item) => (
+            <option key={item}>{item}</option>
+          ))}
+        </select>
       </div>
       {locked ? (
         <p className="text-xs text-cream/50">
@@ -379,6 +458,9 @@ function EventRow({
               name,
               gender,
               event_type: eventType,
+              round,
+              session,
+              scores_points: round !== "prelim",
             })
           }
         >

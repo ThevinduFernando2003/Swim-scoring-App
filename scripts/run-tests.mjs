@@ -18,6 +18,7 @@ const files = [
   "lib/import-extract.test.ts",
   "lib/times.test.ts",
   "lib/ties.test.ts",
+  "lib/qualify.test.ts",
 ];
 
 const args = [];

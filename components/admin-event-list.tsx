@@ -87,6 +87,12 @@ export function AdminEventList({
                 <div>
                   <p className="text-xs uppercase tracking-widest text-cream/60">
                     Event {event.event_number} · {event.gender} · {event.event_type}
+                    {event.round && event.round !== "timed_final"
+                      ? ` · ${event.round}`
+                      : ""}
+                    {event.session && event.session !== "unspecified"
+                      ? ` · ${event.session}`
+                      : ""}
                   </p>
                   <p className="text-lg font-semibold text-cream">{event.name}</p>
                 </div>

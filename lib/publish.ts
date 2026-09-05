@@ -30,6 +30,7 @@ export function toPublishRows(
   rows: ReviewedResult[],
   teams: Team[],
   config: PointsConfig = DEFAULT_POINTS_CONFIG,
+  scoresPoints = true,
 ): { rows: PublishRow[]; unknownCodes: string[] } {
   const byCode = new Map(teams.map((team) => [team.code.toUpperCase(), team]));
   const unknownCodes = unknownTeamCodes(rows, teams);
@@ -49,7 +50,9 @@ export function toPublishRows(
       team_id: team.id,
       achievement: row.achievement.trim(),
       result_status: row.result_status,
-      points_awarded: pointsFor(eventType, position, row.result_status, config),
+      points_awarded: scoresPoints
+        ? pointsFor(eventType, position, row.result_status, config)
+        : 0,
     };
   });
 

@@ -1,6 +1,8 @@
 export type Gender = "Men" | "Women" | "Boys" | "Girls" | "Mixed";
 export type EventType = "individual" | "relay";
 export type EventStatus = "not_uploaded" | "pending_review" | "confirmed";
+export type EventRound = "prelim" | "final" | "timed_final";
+export type EventSession = "morning" | "evening" | "unspecified";
 export type ResultStatus = "finished" | "DNS" | "DQ" | "DNF" | "NS" | "WD";
 export type MeetStatus = "draft" | "live" | "completed";
 export type MeetRoleName = "meet_admin" | "official";
@@ -52,6 +54,11 @@ export type MeetEvent = {
   gender: Gender;
   event_type: EventType;
   status: EventStatus;
+  round?: EventRound;
+  session?: EventSession;
+  linked_event_id?: number | null;
+  qualify_count?: number;
+  scores_points?: boolean;
 };
 
 export type EventResult = {
@@ -100,6 +107,8 @@ export type ImportedEvent = {
   name: string;
   gender: Gender;
   event_type: EventType;
+  round?: EventRound;
+  session?: EventSession;
 };
 
 export type ExtractedResult = {
@@ -183,4 +192,6 @@ export const RESULT_STATUSES: ResultStatus[] = [
 
 export const GENDERS: Gender[] = ["Men", "Women", "Boys", "Girls", "Mixed"];
 export const EVENT_TYPES: EventType[] = ["individual", "relay"];
+export const EVENT_ROUNDS: EventRound[] = ["prelim", "final", "timed_final"];
+export const EVENT_SESSIONS: EventSession[] = ["morning", "evening", "unspecified"];
 export const MEET_STATUSES: MeetStatus[] = ["draft", "live", "completed"];

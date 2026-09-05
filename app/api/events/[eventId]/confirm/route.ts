@@ -70,6 +70,7 @@ export async function POST(
       body.results,
       teams,
       config,
+      event.scores_points !== false && event.round !== "prelim",
     );
     if (unknownCodes.length > 0) {
       return NextResponse.json(

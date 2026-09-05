@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     if (sourceMeetId) {
       const { data: events } = await supabase
         .from("events")
-        .select("day, event_number, name, gender, event_type")
+        .select("day, event_number, name, gender, event_type, round, session, qualify_count, scores_points")
         .eq("meet_id", sourceMeetId);
       if (events?.length) {
         await supabase.from("events").insert(

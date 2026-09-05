@@ -25,7 +25,9 @@ export default function RunningAMeetGuidePage() {
       <p>
         In that meet’s admin area: add every team/school with a short code
         (COL, …), or drop the official list PDF. Build the programme by hand
-        or import the schedule PDF, and set <strong>Next results expected
+        or import the schedule PDF. Mark morning prelims and evening finals
+        when the meet uses heats — after prelims are published, build the
+        evening final from the top 8. Set <strong>Next results expected
         at</strong> so the public knows when to check back. Import the entry
         roster PDF, then use Roster / check-in on day one (registered, SLASU,
         present). Under Appearance, set this meet’s colour, official logo, and
