@@ -42,7 +42,8 @@ export default function RunningAMeetGuidePage() {
       <h2 className="text-xl font-bold text-gold">4. Upload and confirm a result</h2>
       <p>
         Uploads → pick the event → drop the official PDF. Check every row
-        (names, team codes, times, DNS/DQ). Yellow notes mean similar names on
+        (names, team codes, times, DNS/DQ). Equal times are a tie: they share
+        the place and both score those points. Yellow notes mean similar names on
         the same team — fix spelling to attach to the same swimmer, or leave
         them if they are different people. Then Confirm &amp; Publish. The
         leaderboard updates immediately.

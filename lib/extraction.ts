@@ -26,6 +26,7 @@ Rules:
 - achievement is the time (e.g. 02:08.03) or the non-finisher code.
 - If the sheet shows DNS, DQ, DNF, NS, or WD, set status to that code and position to the printed place if any, otherwise null. These never score.
 - Finished swimmers have status "finished".
+- If two or more finishers have the same time, they share the same position (tie). Skip the next place (1, 1, 3).
 - Include at least positions 1-6 finishers. Later places may be included.
 - Do not invent rows. If a field is unreadable, use null / empty string.
 - gender must be "Men" or "Women" when the sheet names it.`;

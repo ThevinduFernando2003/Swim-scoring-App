@@ -37,7 +37,7 @@ On **Officials**, enter their email. They sign in from the **Officials** link on
 
 ## 4. Upload and confirm a result
 
-**Uploads → pick the event → drop the official PDF.** Check every row (names, team codes, times, DNS/DQ). Yellow notes mean similar names on the same team — fix the spelling to attach to the same swimmer, or leave them if they are different people.
+**Uploads → pick the event → drop the official PDF.** Check every row (names, team codes, times, DNS/DQ). Equal times are a tie: they share the place (1=, 1=) and the next place is skipped. Both score that place’s points. Yellow notes mean similar names on the same team — fix the spelling to attach to the same swimmer, or leave them if they are different people.
 
 Then **Confirm & Publish**. The leaderboard updates immediately. Anyone can open **View original PDF** on the public event page.
 

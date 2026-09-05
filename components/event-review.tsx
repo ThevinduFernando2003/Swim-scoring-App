@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { pointsFor } from "@/lib/points";
 import { unknownTeamCodes } from "@/lib/publish";
 import { findDuplicateWarnings } from "@/lib/swimmers";
+import { applyTiedPlaces, tiedPositions } from "@/lib/ties";
 import type {
   ExtractionPayload,
   Meet,
@@ -70,6 +71,8 @@ export function EventReview({
   const [replace, setReplace] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  const ranked = useMemo(() => applyTiedPlaces(rows), [rows]);
+  const ties = useMemo(() => tiedPositions(ranked), [ranked]);
   const unknown = useMemo(() => unknownTeamCodes(rows, teams), [rows, teams]);
   const knownCodes = useMemo(
     () => new Set(teams.map((team) => team.code.toUpperCase())),
@@ -232,6 +235,9 @@ export function EventReview({
               const code = row.team_code.trim().toUpperCase();
               const unknownTeam = Boolean(code) && !knownCodes.has(code);
               const dup = duplicates.find((item) => item.rowIndex === index);
+              const rankedRow = ranked[index];
+              const isTie =
+                rankedRow?.position != null && ties.has(rankedRow.position);
               return (
                 <tr key={index} className="border-t border-white/10">
                   <td className="px-3 py-2">
@@ -312,12 +318,19 @@ export function EventReview({
                     </select>
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-lg font-black">
-                    {pointsFor(
-                      event.event_type,
-                      row.position,
-                      row.result_status,
-                      pointsConfig,
-                    )}
+                    <div>
+                      {pointsFor(
+                        event.event_type,
+                        rankedRow?.position ?? row.position,
+                        row.result_status,
+                        pointsConfig,
+                      )}
+                    </div>
+                    {isTie ? (
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-gold">
+                        Tie {rankedRow.position}=
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2">
                     <button
@@ -337,13 +350,26 @@ export function EventReview({
         </table>
       </div>
 
-      <Button
-        type="button"
-        variant="navy"
-        onClick={() => setRows((current) => [...current, emptyRow()])}
-      >
-        Add row
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="navy"
+          onClick={() => setRows((current) => [...current, emptyRow()])}
+        >
+          Add row
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setRows((current) => applyTiedPlaces(current))}
+        >
+          Rank from times
+        </Button>
+      </div>
+      <p className="text-xs text-cream/50">
+        Equal times share a place (1=, 1=) and skip the next. Publish always
+        re-ranks finishers from the clock times.
+      </p>
 
       {unknown.length > 0 ? (
         <p className="rounded-md border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">

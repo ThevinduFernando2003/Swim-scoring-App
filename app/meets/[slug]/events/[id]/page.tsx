@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DownloadCsvButton } from "@/components/download-csv-button";
 import { TeamBadge } from "@/components/team-badge";
 import { loadMeetBySlug } from "@/lib/data";
+import { formatPlace, tiedPositions } from "@/lib/ties";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -67,6 +68,7 @@ export default async function EventDetailPage({
 
   const medals = ["🥇", "🥈", "🥉"];
   const rows = results ?? [];
+  const ties = tiedPositions(rows);
 
   return (
     <div className="space-y-6">
@@ -104,7 +106,7 @@ export default async function EventDetailPage({
               ...rows.map((row) => {
                 const team = Array.isArray(row.teams) ? row.teams[0] : row.teams;
                 return [
-                  row.position,
+                  formatPlace(row.position, row.position != null && ties.has(row.position)),
                   row.swimmer_name,
                   team?.code ?? "",
                   row.achievement,
@@ -143,7 +145,10 @@ export default async function EventDetailPage({
                   className="border-t border-white/10 bg-navy-mid/60"
                 >
                   <td className="px-4 py-4 font-mono text-xl font-black text-gold">
-                    {medal} {row.position ?? row.result_status}
+                    {medal}{" "}
+                    {row.position != null
+                      ? formatPlace(row.position, ties.has(row.position))
+                      : row.result_status}
                   </td>
                   <td className="px-4 py-4 font-semibold text-cream">
                     {row.swimmer_name}

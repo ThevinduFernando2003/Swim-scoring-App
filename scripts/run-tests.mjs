@@ -16,6 +16,8 @@ const files = [
   "lib/extraction.test.ts",
   "lib/swimmers.test.ts",
   "lib/import-extract.test.ts",
+  "lib/times.test.ts",
+  "lib/ties.test.ts",
 ];
 
 const args = [];

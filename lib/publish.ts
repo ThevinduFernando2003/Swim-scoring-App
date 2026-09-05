@@ -1,4 +1,5 @@
 import { DEFAULT_POINTS_CONFIG, pointsFor } from "./points.ts";
+import { applyTiedPlaces } from "./ties.ts";
 import type {
   EventType,
   PointsConfig,
@@ -36,7 +37,8 @@ export function toPublishRows(
     return { rows: [], unknownCodes };
   }
 
-  const publishRows: PublishRow[] = rows.map((row) => {
+  const ranked = applyTiedPlaces(rows);
+  const publishRows: PublishRow[] = ranked.map((row) => {
     const team = byCode.get(row.team_code.trim().toUpperCase())!;
     const position = row.position == null || Number.isNaN(row.position)
       ? null

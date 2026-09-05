@@ -60,11 +60,50 @@ test("replace rebuilds points from scratch instead of stacking", () => {
   const firstTotal = first.reduce((sum, row) => sum + row.points_awarded, 0);
   const secondTotal = second.reduce((sum, row) => sum + row.points_awarded, 0);
   assert.equal(firstTotal, 12);
-  assert.equal(secondTotal, 5);
+  assert.equal(second[0].points_awarded, 0);
+  assert.equal(second[1].position, 1);
+  assert.equal(second[1].points_awarded, 7);
+  assert.equal(secondTotal, 7);
   assert.ok(secondTotal < firstTotal);
 });
 
 test("relay uses the relay table", () => {
   const { rows } = toPublishRows("relay", [extracted[0]], teams);
   assert.equal(rows[0].points_awarded, 10);
+});
+
+test("tied times share place and both score that place", () => {
+  const { rows } = toPublishRows(
+    "individual",
+    [
+      {
+        position: 1,
+        swimmer_name: "A",
+        team_code: "COL",
+        achievement: "02:08.03",
+        result_status: "finished",
+      },
+      {
+        position: 2,
+        swimmer_name: "B",
+        team_code: "SAB",
+        achievement: "02:08.03",
+        result_status: "finished",
+      },
+      {
+        position: 3,
+        swimmer_name: "C",
+        team_code: "WAY",
+        achievement: "02:10.00",
+        result_status: "finished",
+      },
+    ],
+    teams,
+  );
+  assert.equal(rows[0].position, 1);
+  assert.equal(rows[1].position, 1);
+  assert.equal(rows[2].position, 3);
+  assert.equal(rows[0].points_awarded, 7);
+  assert.equal(rows[1].points_awarded, 7);
+  assert.equal(rows[2].points_awarded, 4);
 });
